@@ -185,7 +185,7 @@ const Checkout = () => {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_QvFiXZe6iRfjAH', // Public Key
         amount: orderData.amount,
         currency: orderData.currency,
-        name: 'Myntra Clone',
+        name: 'Myntra',
         description: 'Test Transaction',
         order_id: orderData.id,
         handler: async function (response) {

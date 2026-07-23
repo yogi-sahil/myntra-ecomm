@@ -42,8 +42,8 @@ async function migrate() {
     // Insert default settings
     await connection.query(`
       INSERT IGNORE INTO settings (setting_key, setting_value) VALUES 
-      ('store_name', 'Myntra Clone'),
-      ('contact_email', 'support@myntraclone.local'),
+      ('store_name', 'Myntra'),
+      ('contact_email', 'support@myntra.com'),
       ('support_phone', '+91 98765 43210'),
       ('currency', 'INR'),
       ('razorpay_key_id', 'rzp_test_QvFiXZe6iRfjAH'),

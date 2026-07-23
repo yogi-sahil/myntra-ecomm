@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../config/db');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_myntra_clone_2026';
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_myntra_2026';
 
 // @route   POST /api/auth/register
 // @desc    Register a new user

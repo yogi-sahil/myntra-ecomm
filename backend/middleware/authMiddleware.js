@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_myntra_clone_2026';
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_myntra_2026';
 
 // General Auth Middleware (Any logged-in user)
 const protect = (req, res, next) => {

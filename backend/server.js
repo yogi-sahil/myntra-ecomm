@@ -101,7 +101,7 @@ app.post('/api/admin/upload', protect, adminOnly, express.json({ limit: '10mb' }
 
 // Basic Health Check Route
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Myntra Clone API is running smoothly!' });
+  res.json({ status: 'ok', message: 'Myntra API is running smoothly!' });
 });
 
 // Process error handlers
