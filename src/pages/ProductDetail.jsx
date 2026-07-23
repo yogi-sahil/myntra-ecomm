@@ -35,16 +35,35 @@ const ProductDetail = () => {
 
     fetchProduct();
   }, [id]);
+  const isNonApparel = product ? [
+    'Makeup', 'Cosmetics', 'Fragrances', 'Perfumes', 'Women Perfumes', 'Men Perfumes', 
+    'Strobe Cream', 'Mascara', 'Foundation', 'Lipsticks', 'Makeup Fixer', 'Makeup Kits',
+    'Skincare', 'Grooming', 'Watches', 'Smartwatches', 'Handbags', 'Backpacks', 'Sunglasses', 'Jewellery'
+  ].includes(product.category) : false;
+
+  const derivedSizes = product?.available_sizes
+    ? product.available_sizes.split(',').map(s => s.trim())
+    : (isNonApparel ? ['Standard'] : ['S', 'M', 'L', 'XL', 'XXL']);
+
+  useEffect(() => {
+    if (product) {
+      if (isNonApparel || (derivedSizes.length === 1 && derivedSizes[0] !== 'S')) {
+        setSelectedSize(derivedSizes[0] || 'Standard');
+      }
+    }
+  }, [product]);
+
   if (loading) return <ProductDetailSkeleton />;
   if (fetchError || !product) return <div className="pt-32 text-center h-[50vh] text-red-500 font-bold">{fetchError || 'Product not found'}</div>;
 
   const handleAddToCart = () => {
-    if (!selectedSize) {
+    const sizeToUse = selectedSize || (isNonApparel ? (derivedSizes[0] || 'Standard') : '');
+    if (!sizeToUse) {
       setError(true);
       return;
     }
     setError(false);
-    addToCart(product, selectedSize);
+    addToCart(product, sizeToUse);
   };
 
   return (
@@ -84,26 +103,28 @@ const ProductDetail = () => {
         </div>
         <p className="text-[14px] font-bold text-[#03a685] mb-6">inclusive of all taxes</p>
 
-        {/* Size Selection */}
+        {/* Size / Variant Selection */}
         <div className="mb-6">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-[16px] font-bold text-[#282c3f]">SELECT SIZE</h3>
-            <span className="text-[14px] font-bold text-[#ff3f6c] cursor-pointer">SIZE CHART</span>
+            <h3 className="text-[16px] font-bold text-[#282c3f]">
+              {isNonApparel ? 'AVAILABLE VARIANT / SIZE' : 'SELECT SIZE'}
+            </h3>
+            {!isNonApparel && <span className="text-[14px] font-bold text-[#ff3f6c] cursor-pointer">SIZE CHART</span>}
           </div>
-          <div className="flex gap-4">
-            {['S', 'M', 'L', 'XL', 'XXL'].map((size) => (
+          <div className="flex flex-wrap gap-3">
+            {derivedSizes.map((size) => (
               <button
                 key={size}
                 onClick={() => { setSelectedSize(size); setError(false); }}
-                className={`w-[50px] h-[50px] rounded-full border flex items-center justify-center text-[14px] font-bold transition-colors
-                  ${selectedSize === size ? 'border-[#ff3f6c] text-[#ff3f6c]' : 'border-[#bfc0c6] text-[#282c3f] hover:border-[#ff3f6c]'}
+                className={`px-4 py-2.5 rounded-full border flex items-center justify-center text-[13px] font-bold transition-all
+                  ${selectedSize === size ? 'border-[#ff3f6c] text-[#ff3f6c] bg-[#ff3f6c]/5' : 'border-[#bfc0c6] text-[#282c3f] hover:border-[#ff3f6c]'}
                 `}
               >
                 {size}
               </button>
             ))}
           </div>
-          {error && <p className="text-[#ff3f6c] text-[12px] mt-2">Please select a size</p>}
+          {error && <p className="text-[#ff3f6c] text-[12px] mt-2 font-bold">Please select a size option</p>}
         </div>
 
         {/* Actions */}

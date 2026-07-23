@@ -3,9 +3,11 @@ import { useCart } from '../context/CartContext';
 import { Link } from 'react-router-dom';
 
 import { API_BASE_URL } from '../config';
+import { useToast } from '../context/ToastContext';
 
 const Cart = () => {
   const { cartItems, removeFromCart, updateQuantity, cartTotal, totalItems } = useCart();
+  const { showToast } = useToast();
   const [couponInput, setCouponInput] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState('');
   const [discountAmount, setDiscountAmount] = useState(0);
@@ -37,13 +39,13 @@ const Cart = () => {
         
         setDiscountAmount(discount);
         setAppliedCoupon(data.coupon.code);
-        alert(data.message);
+        showToast(data.message, 'success');
       } else {
-        alert(data.message);
+        showToast(data.message || 'Invalid coupon code', 'error');
       }
     } catch (err) {
       console.error(err);
-      alert('Error applying coupon');
+      showToast('Failed to apply coupon', 'error');
     }
   };
 

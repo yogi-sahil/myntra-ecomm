@@ -2,6 +2,8 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { API_BASE_URL } from '../config';
 
+import { useToast } from './ToastContext';
+
 const WishlistContext = createContext();
 
 export const useWishlist = () => useContext(WishlistContext);
@@ -9,6 +11,7 @@ export const useWishlist = () => useContext(WishlistContext);
 export const WishlistProvider = ({ children }) => {
   const [wishlistItems, setWishlistItems] = useState([]);
   const { user, token } = useAuth();
+  const { showToast } = useToast();
 
   useEffect(() => {
     if (user && token) {
@@ -33,7 +36,10 @@ export const WishlistProvider = ({ children }) => {
   };
 
   const addToWishlist = async (product) => {
-    if (!token) return alert('Please login first');
+    if (!token) {
+      showToast('Please login to add items to wishlist', 'error');
+      return;
+    }
 
     setWishlistItems((prevItems) => {
       const existingItem = prevItems.find((item) => item.id === product.id);
@@ -42,6 +48,8 @@ export const WishlistProvider = ({ children }) => {
       }
       return [...prevItems, product];
     });
+
+    showToast('Added to Wishlist! ❤️', 'success');
 
     try {
       await fetch(`${API_BASE_URL}/wishlist`, {

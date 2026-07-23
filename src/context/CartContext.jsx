@@ -2,6 +2,8 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { API_BASE_URL } from '../config';
 
+import { useToast } from './ToastContext';
+
 const CartContext = createContext();
 
 export const useCart = () => useContext(CartContext);
@@ -9,6 +11,7 @@ export const useCart = () => useContext(CartContext);
 export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([]);
   const { user, token } = useAuth();
+  const { showToast } = useToast();
 
   useEffect(() => {
     if (user && token) {
@@ -33,7 +36,10 @@ export const CartProvider = ({ children }) => {
   };
 
   const addToCart = async (product, size = 'M') => {
-    if (!token) return alert('Please login first');
+    if (!token) {
+      showToast('Please login to add items to bag', 'error');
+      return;
+    }
     
     // Optimistic UI update
     setCartItems((prevItems) => {
@@ -45,6 +51,8 @@ export const CartProvider = ({ children }) => {
       }
       return [...prevItems, { ...product, quantity: 1, size }];
     });
+
+    showToast('Added to Bag! 🛍️', 'success');
 
     try {
       await fetch(`${API_BASE_URL}/cart`, {

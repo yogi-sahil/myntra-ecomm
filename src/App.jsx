@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Outlet, Navigate } from 'react-
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
+import { ToastProvider } from './context/ToastContext';
 
 // User Components
 import Header from './components/Header';
@@ -50,39 +51,41 @@ const StoreLayout = () => (
 
 function App() {
   return (
-    <AuthProvider>
-      <CartProvider>
-        <WishlistProvider>
-          <Router>
-            <Routes>
-              {/* Admin Routes (No Standard Header/Footer) */}
-              <Route path="/admin/login" element={<AdminLogin />} />
-              <Route path="/admin" element={<ProtectedAdminRoute><AdminLayout /></ProtectedAdminRoute>}>
-                <Route index element={<AdminDashboard />} />
-                <Route path="products" element={<AdminProducts />} />
-                <Route path="categories" element={<AdminCategories />} />
-                <Route path="orders" element={<AdminOrders />} />
-                <Route path="users" element={<AdminUsers />} />
-                <Route path="discounts" element={<AdminDiscount />} />
-                <Route path="settings" element={<AdminSettings />} />
-              </Route>
+    <ToastProvider>
+      <AuthProvider>
+        <CartProvider>
+          <WishlistProvider>
+            <Router>
+              <Routes>
+                {/* Admin Routes (No Standard Header/Footer) */}
+                <Route path="/admin/login" element={<AdminLogin />} />
+                <Route path="/admin" element={<ProtectedAdminRoute><AdminLayout /></ProtectedAdminRoute>}>
+                  <Route index element={<AdminDashboard />} />
+                  <Route path="products" element={<AdminProducts />} />
+                  <Route path="categories" element={<AdminCategories />} />
+                  <Route path="orders" element={<AdminOrders />} />
+                  <Route path="users" element={<AdminUsers />} />
+                  <Route path="discounts" element={<AdminDiscount />} />
+                  <Route path="settings" element={<AdminSettings />} />
+                </Route>
 
-              {/* Store Routes (With Header/Footer) */}
-              <Route path="/" element={<StoreLayout />}>
-                <Route index element={<Home />} />
-                <Route path="products" element={<ProductList />} />
-                <Route path="product/:id" element={<ProductDetail />} />
-                <Route path="cart" element={<Cart />} />
-                <Route path="wishlist" element={<Wishlist />} />
-                <Route path="login" element={<Login />} />
-                <Route path="profile" element={<Profile />} />
-                <Route path="checkout" element={<Checkout />} />
-              </Route>
-            </Routes>
-          </Router>
-        </WishlistProvider>
-      </CartProvider>
-    </AuthProvider>
+                {/* Store Routes (With Header/Footer) */}
+                <Route path="/" element={<StoreLayout />}>
+                  <Route index element={<Home />} />
+                  <Route path="products" element={<ProductList />} />
+                  <Route path="product/:id" element={<ProductDetail />} />
+                  <Route path="cart" element={<Cart />} />
+                  <Route path="wishlist" element={<Wishlist />} />
+                  <Route path="login" element={<Login />} />
+                  <Route path="profile" element={<Profile />} />
+                  <Route path="checkout" element={<Checkout />} />
+                </Route>
+              </Routes>
+            </Router>
+          </WishlistProvider>
+        </CartProvider>
+      </AuthProvider>
+    </ToastProvider>
   );
 }
 

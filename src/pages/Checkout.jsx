@@ -3,10 +3,12 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
+import { useToast } from '../context/ToastContext';
 
 const Checkout = () => {
   const { cartItems, cartTotal, setCartItems } = useCart();
   const { user, token } = useAuth();
+  const { showToast } = useToast();
   const [step, setStep] = useState(1); // 1: Address, 2: Payment
   const [loading, setLoading] = useState(false);
   const [savedAddresses, setSavedAddresses] = useState([]);
@@ -109,15 +111,15 @@ const Checkout = () => {
             });
 
             if (verifyResponse.ok) {
-              alert('Payment Successful! Order placed.');
+              showToast('Payment Successful! Order placed 🎉', 'success');
               setCartItems && setCartItems([]);
               navigate('/');
             } else {
-              alert('Payment Verification Failed!');
+              showToast('Payment Verification Failed', 'error');
             }
           } catch (err) {
             console.error('Verify error:', err);
-            alert('Failed to verify payment.');
+            showToast('Failed to verify payment', 'error');
           }
         },
         prefill: {
@@ -133,13 +135,13 @@ const Checkout = () => {
       // 4. Open Razorpay Checkout Modal
       const rzp = new window.Razorpay(options);
       rzp.on('payment.failed', function (response) {
-        alert('Payment Failed! ' + response.error.description);
+        showToast('Payment Failed: ' + response.error.description, 'error');
       });
       rzp.open();
 
     } catch (err) {
       console.error('Checkout error:', err);
-      alert('Error initiating checkout.');
+      showToast('Error initiating checkout', 'error');
     } finally {
       setLoading(false);
     }
@@ -251,7 +253,7 @@ const Checkout = () => {
                 <button 
                   onClick={() => {
                     if(!addressData.street || !addressData.city || !addressData.state || !addressData.pincode || !addressData.mobile) {
-                      alert('Please fill all address fields or select an address.');
+                      showToast('Please fill all address fields or select an address', 'error');
                       return;
                     }
                     setStep(2);
