@@ -93,4 +93,37 @@ router.post('/verify', async (req, res) => {
   }
 });
 
+// @route   POST /api/payment/cod
+// @desc    Place a Cash on Delivery order
+router.post('/cod', async (req, res) => {
+  const { userId, totalAmount, shippingAddress, items } = req.body;
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [orderResult] = await connection.query(
+      'INSERT INTO orders (user_id, total_amount, shipping_address, status) VALUES (?, ?, ?, ?)',
+      [userId || 2, totalAmount, shippingAddress || 'Default Address', 'COD / Processing']
+    );
+    const orderId = orderResult.insertId;
+
+    if (Array.isArray(items)) {
+      for (const item of items) {
+        await connection.query(
+          'INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)',
+          [orderId, item.id, item.quantity, item.price]
+        );
+      }
+    }
+
+    await connection.commit();
+    res.status(200).json({ message: 'COD Order placed successfully! 📦', orderId });
+  } catch (error) {
+    await connection.rollback();
+    console.error('COD Order Error:', error);
+    res.status(500).json({ message: 'Failed to place COD order' });
+  } finally {
+    connection.release();
+  }
+});
+
 module.exports = router;

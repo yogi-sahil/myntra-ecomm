@@ -14,6 +14,7 @@ const Checkout = () => {
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState('razorpay');
 
   const [addressData, setAddressData] = useState({
     name: user?.name || '',
@@ -130,6 +131,40 @@ const Checkout = () => {
 
     setShowAddressForm(false);
     setStep(2);
+  };
+
+  const handlePlaceCodOrder = async () => {
+    setLoading(true);
+    try {
+      const formattedAddress = `${addressData.street}, ${addressData.city}, ${addressData.state} - ${addressData.pincode}`;
+      const response = await fetch(`${API_BASE_URL}/payment/cod`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user?.id || 2,
+          totalAmount: finalTotal,
+          shippingAddress: formattedAddress,
+          items: cartItems.map(item => ({
+            id: item.id,
+            quantity: item.quantity,
+            price: item.price
+          }))
+        })
+      });
+
+      if (response.ok) {
+        showToast('COD Order placed successfully! 📦', 'success');
+        setCartItems && setCartItems([]);
+        navigate('/');
+      } else {
+        showToast('Failed to place COD order', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Error placing COD order', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handlePlaceOrder = async () => {
@@ -334,35 +369,91 @@ const Checkout = () => {
 
           {step === 2 && (
             <div className="border border-[#eaeaec] bg-white rounded-sm">
-              <div className="p-4 bg-gray-50 border-b border-[#eaeaec]">
+              <div className="p-4 bg-gray-50 border-b border-[#eaeaec] flex justify-between items-center">
                 <h2 className="text-[14px] font-bold text-[#282c3f] uppercase">Choose Payment Mode</h2>
+                <span className="text-[11px] font-bold text-[#03a685] flex items-center gap-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  100% SECURE PAYMENTS
+                </span>
               </div>
               <div className="flex flex-col md:flex-row">
                 {/* Payment Tabs */}
-                <div className="w-full md:w-[35%] bg-gray-50 border-r border-[#eaeaec] flex flex-col">
-                  <div className="p-4 text-[13px] font-bold text-[#282c3f] bg-white border-l-4 border-[#ff3f6c]">Credit / Debit Card</div>
-                  <div className="p-4 text-[13px] font-bold text-[#535766] cursor-pointer hover:bg-gray-100 border-l-4 border-transparent">UPI / BHIM</div>
-                  <div className="p-4 text-[13px] font-bold text-[#535766] cursor-pointer hover:bg-gray-100 border-l-4 border-transparent">Net Banking</div>
-                  <div className="p-4 text-[13px] font-bold text-[#535766] cursor-pointer hover:bg-gray-100 border-l-4 border-transparent">Cash on Delivery</div>
-                </div>
-                {/* Payment Content */}
-                <div className="w-full md:w-[65%] p-6">
-                  <h3 className="text-[14px] font-bold text-[#282c3f] mb-4">CREDIT/DEBIT CARD</h3>
-                  <p className="text-[12px] text-[#535766] mb-4">Please ensure your card can be used for online transactions.</p>
-                  <input type="text" placeholder="Card Number" className="w-full border border-[#d4d5d9] p-3 text-[13px] mb-4 focus:border-[#282c3f] outline-none" />
-                  <input type="text" placeholder="Name on Card" className="w-full border border-[#d4d5d9] p-3 text-[13px] mb-4 focus:border-[#282c3f] outline-none" />
-                  <div className="flex gap-4 mb-6">
-                    <input type="text" placeholder="Valid Thru (MM/YY)" className="w-1/2 border border-[#d4d5d9] p-3 text-[13px] focus:border-[#282c3f] outline-none" />
-                    <input type="password" placeholder="CVV" className="w-1/2 border border-[#d4d5d9] p-3 text-[13px] focus:border-[#282c3f] outline-none" />
-                  </div>
-                  
+                <div className="w-full md:w-[40%] bg-gray-50 border-r border-[#eaeaec] flex flex-col">
                   <button 
-                    onClick={handlePlaceOrder}
-                    disabled={loading}
-                    className={`w-full text-white font-bold py-3 text-[14px] rounded-[2px] transition-colors ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#ff3f6c] hover:bg-[#e11b4c]'}`}
+                    onClick={() => setPaymentMethod('razorpay')}
+                    className={`p-4 text-left text-[13px] font-bold transition-all flex items-center justify-between border-l-4 ${paymentMethod === 'razorpay' ? 'text-[#282c3f] bg-white border-[#ff3f6c] shadow-sm' : 'text-[#535766] border-transparent hover:bg-gray-100'}`}
                   >
-                    {loading ? 'PROCESSING...' : `PAY ₹${finalTotal}`}
+                    <span>Razorpay (UPI / Card / NetBanking)</span>
+                    <span className="text-[9px] bg-[#ff3f6c] text-white px-1.5 py-0.5 rounded font-black uppercase">Recommended</span>
                   </button>
+
+                  <button 
+                    onClick={() => setPaymentMethod('cod')}
+                    className={`p-4 text-left text-[13px] font-bold transition-all flex items-center justify-between border-l-4 ${paymentMethod === 'cod' ? 'text-[#282c3f] bg-white border-[#ff3f6c] shadow-sm' : 'text-[#535766] border-transparent hover:bg-gray-100'}`}
+                  >
+                    <span>Cash On Delivery (COD)</span>
+                    <span className="text-[10px] text-gray-400 font-semibold">Pay at doorstep</span>
+                  </button>
+                </div>
+
+                {/* Payment Content */}
+                <div className="w-full md:w-[60%] p-6">
+                  {paymentMethod === 'razorpay' ? (
+                    <div>
+                      {/* Razorpay Gateway Branding Card */}
+                      <div className="border border-blue-100 bg-blue-50/50 rounded-lg p-5 mb-6">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-[13px] font-black text-[#0c2340] tracking-wider flex items-center gap-1.5">
+                            ⚡ RAZORPAY SECURE GATEWAY
+                          </span>
+                          <span className="text-[11px] font-bold text-[#03a685] bg-emerald-100 px-2 py-0.5 rounded-full">Official Payment Partner</span>
+                        </div>
+                        <p className="text-[12px] text-gray-600 mb-4 leading-relaxed">
+                          Pay instantly via <strong>Google Pay, PhonePe, Paytm, BHIM UPI, Credit/Debit Cards, NetBanking, or Wallets</strong>.
+                        </p>
+                        {/* Gateway Payment Badges */}
+                        <div className="flex flex-wrap gap-2 pt-2 border-t border-blue-100">
+                          <span className="bg-white border border-gray-200 text-[10px] font-bold px-2.5 py-1 rounded text-gray-700">Google Pay / PhonePe / Paytm</span>
+                          <span className="bg-white border border-gray-200 text-[10px] font-bold px-2.5 py-1 rounded text-gray-700">Visa / Mastercard / RuPay</span>
+                          <span className="bg-white border border-gray-200 text-[10px] font-bold px-2.5 py-1 rounded text-gray-700">NetBanking (50+ Banks)</span>
+                        </div>
+                      </div>
+
+                      <button 
+                        onClick={handlePlaceOrder}
+                        disabled={loading}
+                        className={`w-full text-white font-black py-3.5 text-[15px] rounded-[4px] shadow-md transition-all flex items-center justify-center gap-2 ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#ff3f6c] hover:bg-[#e11b4c] hover:shadow-lg'}`}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        {loading ? 'OPENING RAZORPAY GATEWAY...' : `PAY VIA RAZORPAY ₹${finalTotal}`}
+                      </button>
+                      
+                      <p className="text-center text-[11px] text-gray-400 mt-3 font-semibold">
+                        🔒 Safe & 256-Bit Encrypted Transaction powered by Razorpay
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="border border-amber-100 bg-amber-50/50 rounded-lg p-5 mb-6">
+                        <h4 className="text-[13px] font-black text-[#282c3f] mb-1">CASH ON DELIVERY</h4>
+                        <p className="text-[12px] text-gray-600">
+                          You can pay in cash to the delivery executive when your parcel arrives at your address.
+                        </p>
+                      </div>
+
+                      <button 
+                        onClick={handlePlaceCodOrder}
+                        disabled={loading}
+                        className={`w-full text-white font-black py-3.5 text-[15px] rounded-[4px] shadow-md transition-all flex items-center justify-center gap-2 ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#282c3f] hover:bg-black hover:shadow-lg'}`}
+                      >
+                        {loading ? 'PLACING ORDER...' : `CONFIRM COD ORDER ₹${finalTotal}`}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
