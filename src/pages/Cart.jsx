@@ -216,7 +216,7 @@ const Cart = () => {
 
                 {/* Remove Item Button */}
                 <button 
-                  onClick={() => removeFromCart(item.cart_item_id)}
+                  onClick={() => removeFromCart(item.cart_item_id, item.id, item.size)}
                   className="absolute top-4 right-4 text-gray-400 hover:text-red-500 transition-colors focus:outline-none"
                   title="Remove item"
                 >

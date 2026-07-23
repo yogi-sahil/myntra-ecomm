@@ -109,34 +109,43 @@ export const CartProvider = ({ children }) => {
     }
   };
 
-  const removeFromCart = async (cartItemId) => {
-    if (!token) return;
-
-    // Optimistic UI update
+  const removeFromCart = async (cartItemId, productId, size) => {
     setCartItems((prevItems) => {
-      const updated = prevItems.filter((item) => item.cart_item_id !== cartItemId && item.id !== cartItemId);
+      const updated = prevItems.filter((item) => {
+        if (cartItemId && item.cart_item_id) {
+          return item.cart_item_id !== cartItemId;
+        }
+        return !(item.id === productId && (!size || item.size === size));
+      });
       localStorage.setItem('myntra_cart', JSON.stringify(updated));
       return updated;
     });
 
+    if (!token) return;
+
     try {
-      await fetch(`${API_BASE_URL}/cart/${cartItemId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      if (cartItemId) {
+        await fetch(`${API_BASE_URL}/cart/${cartItemId}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
     } catch (err) {
       console.error('Failed to remove from cart on server', err);
     }
   };
 
   const updateQuantity = async (cartItemId, amount, productId, size) => {
-    if (!token) return;
+    let targetNewQty = 1;
 
-    // Optimistic UI update
     setCartItems((prevItems) => {
       const updated = prevItems.map((item) => {
-        if (item.cart_item_id === cartItemId || item.id === productId) {
-          const newQuantity = Math.max(1, item.quantity + amount);
+        const matchesCartId = cartItemId && item.cart_item_id && item.cart_item_id === cartItemId;
+        const matchesProductAndSize = productId && item.id === productId && (!size || item.size === size);
+
+        if (matchesCartId || matchesProductAndSize) {
+          const newQuantity = Math.max(1, (item.quantity || 1) + amount);
+          targetNewQty = newQuantity;
           return { ...item, quantity: newQuantity };
         }
         return item;
@@ -145,14 +154,21 @@ export const CartProvider = ({ children }) => {
       return updated;
     });
 
+    if (!token) return;
+
     try {
-      await fetch(`${API_BASE_URL}/cart`, {
-        method: 'POST',
+      await fetch(`${API_BASE_URL}/cart/update-qty`, {
+        method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}` 
         },
-        body: JSON.stringify({ productId: productId, quantity: amount, size })
+        body: JSON.stringify({ 
+          cartItemId: cartItemId || null, 
+          productId: productId, 
+          size: size, 
+          quantity: targetNewQty 
+        })
       });
     } catch (err) {
       console.error('Failed to update quantity on server', err);

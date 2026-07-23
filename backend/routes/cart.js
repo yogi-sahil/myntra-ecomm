@@ -80,4 +80,28 @@ router.delete('/', async (req, res) => {
   }
 });
 
+// @route   PUT /api/cart/update-qty
+// @desc    Update exact quantity for a cart item
+router.put('/update-qty', async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { cartItemId, productId, size, quantity } = req.body;
+
+    if (!quantity || quantity < 1) {
+      return res.status(400).json({ message: 'Valid quantity is required' });
+    }
+
+    if (cartItemId) {
+      await db.query('UPDATE cart_items SET quantity = ? WHERE user_id = ? AND id = ?', [quantity, userId, cartItemId]);
+    } else if (productId && size) {
+      await db.query('UPDATE cart_items SET quantity = ? WHERE user_id = ? AND product_id = ? AND size = ?', [quantity, userId, productId, size]);
+    }
+
+    res.status(200).json({ message: 'Quantity updated' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server Error updating quantity' });
+  }
+});
+
 module.exports = router;
