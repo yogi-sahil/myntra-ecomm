@@ -4,10 +4,10 @@ const Razorpay = require('razorpay');
 const crypto = require('crypto');
 const db = require('../config/db');
 
-// Initialize Razorpay
+// Initialize Razorpay with fallbacks
 const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
+  key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_QvFiXZe6iRfjAH',
+  key_secret: process.env.RAZORPAY_KEY_SECRET || 'uPdWXYO71FQeOgpfNApnPh6T',
 });
 
 // @route   POST /api/payment/create-order
