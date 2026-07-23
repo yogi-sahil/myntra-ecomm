@@ -38,10 +38,11 @@ const Wishlist = () => {
           <div key={item.id} className="group relative w-full flex flex-col border border-[#eaeaec] hover:shadow-[0_2px_16px_4px_rgba(40,44,63,0.07)] transition-shadow duration-300 bg-white">
             <Link to={`/product/${item.id}`} className="block">
               {/* Product Image */}
-              <div className="relative w-full h-[280px] overflow-hidden">
+              <div className="relative w-full h-[280px] overflow-hidden bg-gray-100">
                 <img 
-                  src={item.image} 
+                  src={item.image_url || item.image || 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=500&q=80'} 
                   alt={item.title} 
+                  onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=500&q=80'; }}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
                 
@@ -61,11 +62,16 @@ const Wishlist = () => {
 
               {/* Product Info */}
               <div className="p-3 relative bg-white z-10 border-b border-[#eaeaec]">
-                <p className="text-[14px] text-[#535766] truncate">{item.title}</p>
+                <h3 className="text-[14px] font-bold text-[#282c3f] truncate">{item.brand}</h3>
+                <p className="text-[13px] text-[#535766] truncate">{item.title}</p>
                 <div className="flex items-center gap-2 mt-1">
                   <span className="text-[14px] font-bold text-[#282c3f]">Rs. {item.price}</span>
-                  <span className="text-[12px] text-[#7e818c] line-through">Rs. {item.originalPrice}</span>
-                  <span className="text-[12px] font-bold text-[#ff905a]">({item.discount}% OFF)</span>
+                  {(item.original_price || item.originalPrice) && (
+                    <span className="text-[12px] text-[#7e818c] line-through">Rs. {item.original_price || item.originalPrice}</span>
+                  )}
+                  {item.discount > 0 && (
+                    <span className="text-[12px] font-bold text-[#ff905a]">({item.discount}% OFF)</span>
+                  )}
                 </div>
               </div>
             </Link>

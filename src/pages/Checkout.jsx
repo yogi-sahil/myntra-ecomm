@@ -306,6 +306,34 @@ const Checkout = () => {
 
         {/* Right Area (Order Summary) */}
         <div className="w-full md:w-[35%] flex flex-col gap-4">
+          {/* Order Items Preview */}
+          <div className="border border-[#eaeaec] bg-white rounded-sm p-4">
+            <h4 className="text-[12px] font-bold text-[#535766] uppercase mb-3">Order Items ({cartItems.length})</h4>
+            <div className="flex flex-col gap-3 max-h-60 overflow-y-auto pr-1">
+              {cartItems.map((item) => (
+                <div key={item.cart_item_id || item.id} className="flex gap-3 items-center border-b border-gray-100 pb-2.5 last:border-b-0">
+                  <div className="w-12 h-14 bg-gray-100 rounded overflow-hidden shrink-0">
+                    <img 
+                      src={item.image_url || item.image || 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=500&q=80'} 
+                      alt={item.title} 
+                      onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=500&q=80'; }}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12px] font-bold text-[#282c3f] truncate">{item.brand || item.title}</p>
+                    <p className="text-[11px] text-gray-500 truncate">{item.title}</p>
+                    <div className="flex items-center gap-2 text-[11px] text-gray-500 mt-0.5">
+                      <span>Qty: {item.quantity}</span>
+                      <span>• Size: {item.size || 'M'}</span>
+                    </div>
+                  </div>
+                  <span className="text-[12px] font-bold text-[#282c3f]">₹{item.price * item.quantity}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="border border-[#eaeaec] bg-white rounded-sm p-4">
             <h4 className="text-[12px] font-bold text-[#535766] uppercase mb-4">Price Details ({cartItems.length} Items)</h4>
             

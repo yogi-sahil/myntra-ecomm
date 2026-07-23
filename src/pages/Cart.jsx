@@ -116,8 +116,13 @@ const Cart = () => {
             <div key={item.cart_item_id || item.id} className="p-4 border-b border-[#eaeaec] last:border-b-0 relative group">
               <div className="flex gap-4">
                 {/* Product Image */}
-                <Link to="/products" className="w-[110px] h-[146px] flex-shrink-0 relative bg-gray-50">
-                  <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                <Link to={`/product/${item.id}`} className="w-[110px] h-[146px] flex-shrink-0 relative bg-gray-100 overflow-hidden">
+                  <img 
+                    src={item.image_url || item.image || 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=500&q=80'} 
+                    alt={item.title} 
+                    onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=500&q=80'; }}
+                    className="w-full h-full object-cover" 
+                  />
                 </Link>
 
                 {/* Product Details */}
