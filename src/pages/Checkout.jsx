@@ -426,51 +426,87 @@ const Checkout = () => {
                 <div className="w-full md:w-[58%] p-6">
                   {paymentMethod === 'razorpay_upi' && (
                     <div>
-                      <h3 className="text-[14px] font-bold text-[#282c3f] uppercase mb-1">Pay via UPI</h3>
-                      <p className="text-[12px] text-[#535766] mb-4">Instant 1-click payment using your favorite UPI App</p>
-                      
-                      {/* Popular UPI Apps Grid */}
-                      <div className="grid grid-cols-2 gap-3 mb-4">
-                        <div className="border border-[#eaeaec] p-3 rounded-md flex items-center gap-3 bg-gray-50/50 hover:border-[#ff3f6c] cursor-pointer transition-all">
-                          <span className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center font-bold text-blue-600 text-[11px]">GPay</span>
-                          <div>
-                            <p className="text-[12px] font-bold text-[#282c3f]">Google Pay</p>
-                            <p className="text-[10px] text-gray-400">Instant Approval</p>
-                          </div>
-                        </div>
-
-                        <div className="border border-[#eaeaec] p-3 rounded-md flex items-center gap-3 bg-gray-50/50 hover:border-[#ff3f6c] cursor-pointer transition-all">
-                          <span className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center font-bold text-purple-600 text-[11px]">Pe</span>
-                          <div>
-                            <p className="text-[12px] font-bold text-[#282c3f]">PhonePe</p>
-                            <p className="text-[10px] text-gray-400">Fastest UPI</p>
-                          </div>
-                        </div>
-
-                        <div className="border border-[#eaeaec] p-3 rounded-md flex items-center gap-3 bg-gray-50/50 hover:border-[#ff3f6c] cursor-pointer transition-all">
-                          <span className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center font-bold text-sky-600 text-[11px]">Paytm</span>
-                          <div>
-                            <p className="text-[12px] font-bold text-[#282c3f]">Paytm UPI</p>
-                            <p className="text-[10px] text-gray-400">UPI Lite Supported</p>
-                          </div>
-                        </div>
-
-                        <div className="border border-[#eaeaec] p-3 rounded-md flex items-center gap-3 bg-gray-50/50 hover:border-[#ff3f6c] cursor-pointer transition-all">
-                          <span className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center font-bold text-orange-600 text-[11px]">BHIM</span>
-                          <div>
-                            <p className="text-[12px] font-bold text-[#282c3f]">BHIM / Any UPI</p>
-                            <p className="text-[10px] text-gray-400">All UPI IDs</p>
-                          </div>
-                        </div>
+                      <div className="flex justify-between items-center mb-1">
+                        <h3 className="text-[14px] font-bold text-[#282c3f] uppercase">Pay via UPI</h3>
+                        <span className="text-[10px] font-bold text-[#03a685] bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">1-Click Launch</span>
                       </div>
+                      <p className="text-[12px] text-[#535766] mb-5">Click any app below to pay instantly via Razorpay Secure Gateway</p>
+                      
+                      {/* Popular UPI Apps Grid with Real Logos */}
+                      <div className="grid grid-cols-2 gap-3.5 mb-6">
+                        {/* Google Pay */}
+                        <div 
+                          onClick={handlePlaceOrder}
+                          className="border border-[#eaeaec] p-3.5 rounded-lg flex items-center gap-3.5 bg-white hover:border-[#ff3f6c] hover:shadow-md cursor-pointer transition-all group"
+                        >
+                          <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center p-1 border border-gray-100 group-hover:scale-105 transition-transform">
+                            <img 
+                              src="https://upload.wikimedia.org/wikipedia/commons/f/f2/Google_Pay_%28GPay%29_Logo.svg" 
+                              alt="Google Pay" 
+                              className="w-full h-full object-contain"
+                              onError={(e) => { e.target.src = 'https://cdn.iconscout.com/icon/free/png-256/free-google-pay-logo-icon-svg-download-png-174828.png'; }}
+                            />
+                          </div>
+                          <div>
+                            <p className="text-[13px] font-bold text-[#282c3f] group-hover:text-[#ff3f6c] transition-colors">Google Pay</p>
+                            <p className="text-[10px] text-emerald-600 font-bold">Pay via GPay ⚡</p>
+                          </div>
+                        </div>
 
-                      <div className="mb-5">
-                        <label className="text-[11px] font-bold text-gray-500 mb-1 block uppercase">Enter VPA / UPI ID (Optional)</label>
-                        <input 
-                          type="text" 
-                          placeholder="e.g. mobile@upi or name@okaxis" 
-                          className="w-full border border-[#d4d5d9] p-3 text-[13px] outline-none focus:border-[#282c3f] rounded-[3px]"
-                        />
+                        {/* PhonePe */}
+                        <div 
+                          onClick={handlePlaceOrder}
+                          className="border border-[#eaeaec] p-3.5 rounded-lg flex items-center gap-3.5 bg-white hover:border-[#ff3f6c] hover:shadow-md cursor-pointer transition-all group"
+                        >
+                          <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center p-1 border border-purple-100 group-hover:scale-105 transition-transform">
+                            <img 
+                              src="https://uxwing.com/wp-content/themes/uxwing/download/brands-and-social-media/phonepe-icon.png" 
+                              alt="PhonePe" 
+                              className="w-full h-full object-contain"
+                              onError={(e) => { e.target.src = 'https://cdn.iconscout.com/icon/free/png-256/free-phonepe-logo-icon-png-svg-download-3312015.png'; }}
+                            />
+                          </div>
+                          <div>
+                            <p className="text-[13px] font-bold text-[#282c3f] group-hover:text-[#ff3f6c] transition-colors">PhonePe</p>
+                            <p className="text-[10px] text-purple-600 font-bold">Fastest UPI ⚡</p>
+                          </div>
+                        </div>
+
+                        {/* Paytm */}
+                        <div 
+                          onClick={handlePlaceOrder}
+                          className="border border-[#eaeaec] p-3.5 rounded-lg flex items-center gap-3.5 bg-white hover:border-[#ff3f6c] hover:shadow-md cursor-pointer transition-all group"
+                        >
+                          <div className="w-10 h-10 rounded-lg bg-sky-50 flex items-center justify-center p-1 border border-sky-100 group-hover:scale-105 transition-transform">
+                            <img 
+                              src="https://cdn.iconscout.com/icon/free/png-256/free-paytm-logo-icon-png-svg-download-3521631.png" 
+                              alt="Paytm" 
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
+                          <div>
+                            <p className="text-[13px] font-bold text-[#282c3f] group-hover:text-[#ff3f6c] transition-colors">Paytm UPI</p>
+                            <p className="text-[10px] text-sky-600 font-bold">UPI Lite Active ⚡</p>
+                          </div>
+                        </div>
+
+                        {/* BHIM / Any UPI */}
+                        <div 
+                          onClick={handlePlaceOrder}
+                          className="border border-[#eaeaec] p-3.5 rounded-lg flex items-center gap-3.5 bg-white hover:border-[#ff3f6c] hover:shadow-md cursor-pointer transition-all group"
+                        >
+                          <div className="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center p-1 border border-orange-100 group-hover:scale-105 transition-transform">
+                            <img 
+                              src="https://upload.wikimedia.org/wikipedia/commons/e/e1/BHIM-Logo.svg" 
+                              alt="BHIM UPI" 
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
+                          <div>
+                            <p className="text-[13px] font-bold text-[#282c3f] group-hover:text-[#ff3f6c] transition-colors">BHIM / Any UPI</p>
+                            <p className="text-[10px] text-orange-600 font-bold">All UPI IDs ⚡</p>
+                          </div>
+                        </div>
                       </div>
 
                       <button 
@@ -478,7 +514,7 @@ const Checkout = () => {
                         disabled={loading}
                         className={`w-full text-white font-black py-3.5 text-[15px] rounded-[4px] shadow-md transition-all flex items-center justify-center gap-2 ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#ff3f6c] hover:bg-[#e11b4c] hover:shadow-lg'}`}
                       >
-                        ⚡ {loading ? 'OPENING RAZORPAY...' : `PAY VIA UPI ₹${finalTotal}`}
+                        ⚡ {loading ? 'OPENING RAZORPAY...' : `PAY VIA RAZORPAY UPI ₹${finalTotal}`}
                       </button>
                     </div>
                   )}
@@ -486,40 +522,21 @@ const Checkout = () => {
                   {paymentMethod === 'razorpay_card' && (
                     <div>
                       <h3 className="text-[14px] font-bold text-[#282c3f] uppercase mb-1">Credit / Debit Card</h3>
-                      <p className="text-[12px] text-[#535766] mb-4">Visa, Mastercard, RuPay, Maestro & Diners accepted</p>
+                      <p className="text-[12px] text-[#535766] mb-5">Click below to enter card details securely in Razorpay Gateway</p>
 
-                      <div className="flex gap-2 mb-4">
-                        <span className="bg-gray-100 text-[10px] font-bold px-2 py-1 rounded text-gray-600 border border-gray-200">VISA</span>
-                        <span className="bg-gray-100 text-[10px] font-bold px-2 py-1 rounded text-gray-600 border border-gray-200">MASTERCARD</span>
-                        <span className="bg-gray-100 text-[10px] font-bold px-2 py-1 rounded text-gray-600 border border-gray-200">RUPAY</span>
-                        <span className="bg-gray-100 text-[10px] font-bold px-2 py-1 rounded text-gray-600 border border-gray-200">DINERS</span>
-                      </div>
-
-                      <div className="flex flex-col gap-3 mb-5">
-                        <input 
-                          type="text" 
-                          placeholder="Card Number" 
-                          maxLength={19}
-                          className="w-full border border-[#d4d5d9] p-3 text-[13px] outline-none focus:border-[#282c3f] rounded-[3px]" 
-                        />
-                        <input 
-                          type="text" 
-                          placeholder="Name on Card" 
-                          className="w-full border border-[#d4d5d9] p-3 text-[13px] outline-none focus:border-[#282c3f] rounded-[3px]" 
-                        />
-                        <div className="flex gap-3">
-                          <input 
-                            type="text" 
-                            placeholder="Valid Thru (MM/YY)" 
-                            maxLength={5}
-                            className="w-1/2 border border-[#d4d5d9] p-3 text-[13px] outline-none focus:border-[#282c3f] rounded-[3px]" 
-                          />
-                          <input 
-                            type="password" 
-                            placeholder="CVV" 
-                            maxLength={4}
-                            className="w-1/2 border border-[#d4d5d9] p-3 text-[13px] outline-none focus:border-[#282c3f] rounded-[3px]" 
-                          />
+                      {/* Real Card Brand Logos */}
+                      <div className="grid grid-cols-3 gap-3 mb-6">
+                        <div onClick={handlePlaceOrder} className="border border-[#eaeaec] p-3 rounded-lg flex flex-col items-center justify-center gap-2 bg-white hover:border-[#ff3f6c] cursor-pointer transition-all h-20">
+                          <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" alt="Visa" className="h-6 object-contain" />
+                          <span className="text-[10px] font-bold text-gray-500">VISA</span>
+                        </div>
+                        <div onClick={handlePlaceOrder} className="border border-[#eaeaec] p-3 rounded-lg flex flex-col items-center justify-center gap-2 bg-white hover:border-[#ff3f6c] cursor-pointer transition-all h-20">
+                          <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" className="h-7 object-contain" />
+                          <span className="text-[10px] font-bold text-gray-500">MASTERCARD</span>
+                        </div>
+                        <div onClick={handlePlaceOrder} className="border border-[#eaeaec] p-3 rounded-lg flex flex-col items-center justify-center gap-2 bg-white hover:border-[#ff3f6c] cursor-pointer transition-all h-20">
+                          <img src="https://upload.wikimedia.org/wikipedia/commons/d/d1/RuPay_logo-official.svg" alt="RuPay" className="h-6 object-contain" />
+                          <span className="text-[10px] font-bold text-gray-500">RUPAY</span>
                         </div>
                       </div>
 
@@ -536,25 +553,34 @@ const Checkout = () => {
                   {paymentMethod === 'razorpay_netbanking' && (
                     <div>
                       <h3 className="text-[14px] font-bold text-[#282c3f] uppercase mb-1">Net Banking</h3>
-                      <p className="text-[12px] text-[#535766] mb-4">Select your bank from top Indian net banking portals</p>
+                      <p className="text-[12px] text-[#535766] mb-5">Click your bank logo to open NetBanking in Razorpay</p>
 
-                      <div className="grid grid-cols-3 gap-2.5 mb-5">
-                        {['HDFC Bank', 'ICICI Bank', 'State Bank of India', 'Axis Bank', 'Kotak Bank', 'PNB'].map((bank) => (
-                          <div key={bank} className="border border-[#eaeaec] p-2.5 rounded text-center bg-gray-50/50 hover:border-[#ff3f6c] hover:bg-white cursor-pointer transition-all">
-                            <p className="text-[11px] font-bold text-[#282c3f]">{bank}</p>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="mb-5">
-                        <select className="w-full border border-[#d4d5d9] p-3 text-[13px] outline-none focus:border-[#282c3f] rounded-[3px] bg-white">
-                          <option value="">-- Select Other Bank (50+ Banks) --</option>
-                          <option value="bank_of_baroda">Bank of Baroda</option>
-                          <option value="canara">Canara Bank</option>
-                          <option value="union">Union Bank of India</option>
-                          <option value="idbi">IDBI Bank</option>
-                          <option value="yes">YES Bank</option>
-                        </select>
+                      {/* Real Bank Logos Grid */}
+                      <div className="grid grid-cols-3 gap-3 mb-6">
+                        <div onClick={handlePlaceOrder} className="border border-[#eaeaec] p-3 rounded-lg flex flex-col items-center justify-center gap-1.5 bg-white hover:border-[#ff3f6c] cursor-pointer transition-all h-20">
+                          <img src="https://upload.wikimedia.org/wikipedia/commons/2/28/HDFC_Bank_Logo.svg" alt="HDFC Bank" className="h-5 object-contain" />
+                          <span className="text-[11px] font-bold text-[#282c3f]">HDFC Bank</span>
+                        </div>
+                        <div onClick={handlePlaceOrder} className="border border-[#eaeaec] p-3 rounded-lg flex flex-col items-center justify-center gap-1.5 bg-white hover:border-[#ff3f6c] cursor-pointer transition-all h-20">
+                          <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/ICICI_Bank_Logo.svg" alt="ICICI Bank" className="h-5 object-contain" />
+                          <span className="text-[11px] font-bold text-[#282c3f]">ICICI Bank</span>
+                        </div>
+                        <div onClick={handlePlaceOrder} className="border border-[#eaeaec] p-3 rounded-lg flex flex-col items-center justify-center gap-1.5 bg-white hover:border-[#ff3f6c] cursor-pointer transition-all h-20">
+                          <img src="https://upload.wikimedia.org/wikipedia/commons/c/cc/SBI-logo.svg" alt="SBI" className="h-6 object-contain" />
+                          <span className="text-[11px] font-bold text-[#282c3f]">SBI</span>
+                        </div>
+                        <div onClick={handlePlaceOrder} className="border border-[#eaeaec] p-3 rounded-lg flex flex-col items-center justify-center gap-1.5 bg-white hover:border-[#ff3f6c] cursor-pointer transition-all h-20">
+                          <img src="https://upload.wikimedia.org/wikipedia/commons/1/1a/Axis_Bank_logo.svg" alt="Axis Bank" className="h-5 object-contain" />
+                          <span className="text-[11px] font-bold text-[#282c3f]">Axis Bank</span>
+                        </div>
+                        <div onClick={handlePlaceOrder} className="border border-[#eaeaec] p-3 rounded-lg flex flex-col items-center justify-center gap-1.5 bg-white hover:border-[#ff3f6c] cursor-pointer transition-all h-20">
+                          <img src="https://upload.wikimedia.org/wikipedia/commons/0/09/Kotak_Mahindra_Bank_logo.svg" alt="Kotak" className="h-5 object-contain" />
+                          <span className="text-[11px] font-bold text-[#282c3f]">Kotak Bank</span>
+                        </div>
+                        <div onClick={handlePlaceOrder} className="border border-[#eaeaec] p-3 rounded-lg flex flex-col items-center justify-center gap-1.5 bg-white hover:border-[#ff3f6c] cursor-pointer transition-all h-20">
+                          <span className="text-[14px] font-black text-rose-700">PNB</span>
+                          <span className="text-[11px] font-bold text-[#282c3f]">Punjab Nat.</span>
+                        </div>
                       </div>
 
                       <button 
