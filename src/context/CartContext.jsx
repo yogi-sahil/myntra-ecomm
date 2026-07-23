@@ -1,7 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { API_BASE_URL } from '../config';
-
 import { useToast } from './ToastContext';
 
 const CartContext = createContext();
@@ -9,17 +8,31 @@ const CartContext = createContext();
 export const useCart = () => useContext(CartContext);
 
 export const CartProvider = ({ children }) => {
-  const [cartItems, setCartItems] = useState([]);
+  const [cartItems, setCartItems] = useState(() => {
+    try {
+      const saved = localStorage.getItem('myntra_cart');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
   const { user, token } = useAuth();
   const { showToast } = useToast();
 
   useEffect(() => {
     if (user && token) {
       fetchCart();
-    } else {
-      setCartItems([]);
     }
   }, [user, token]);
+
+  useEffect(() => {
+    try {
+      if (cartItems) {
+        localStorage.setItem('myntra_cart', JSON.stringify(cartItems));
+      }
+    } catch (e) {}
+  }, [cartItems]);
 
   const fetchCart = async () => {
     try {
@@ -28,7 +41,10 @@ export const CartProvider = ({ children }) => {
       });
       if (response.ok) {
         const data = await response.json();
-        setCartItems(data);
+        if (Array.isArray(data) && data.length > 0) {
+          setCartItems(data);
+          localStorage.setItem('myntra_cart', JSON.stringify(data));
+        }
       }
     } catch (err) {
       console.error('Failed to fetch cart:', err);
@@ -44,12 +60,16 @@ export const CartProvider = ({ children }) => {
     // Optimistic UI update
     setCartItems((prevItems) => {
       const existingItem = prevItems.find((item) => item.id === product.id && item.size === size);
+      let updated;
       if (existingItem) {
-        return prevItems.map((item) =>
+        updated = prevItems.map((item) =>
           item.id === product.id && item.size === size ? { ...item, quantity: item.quantity + 1 } : item
         );
+      } else {
+        updated = [...prevItems, { ...product, quantity: 1, size }];
       }
-      return [...prevItems, { ...product, quantity: 1, size }];
+      localStorage.setItem('myntra_cart', JSON.stringify(updated));
+      return updated;
     });
 
     showToast('Added to Bag! 🛍️', 'success');
@@ -63,11 +83,9 @@ export const CartProvider = ({ children }) => {
         },
         body: JSON.stringify({ productId: product.id, quantity: 1, size })
       });
-      // Fetch cart again to get the actual cart_item_id from DB for the new item
       fetchCart();
     } catch (err) {
       console.error('Failed to add to cart on server', err);
-      fetchCart(); // revert on failure
     }
   };
 
@@ -75,7 +93,11 @@ export const CartProvider = ({ children }) => {
     if (!token) return;
 
     // Optimistic UI update
-    setCartItems((prevItems) => prevItems.filter((item) => item.cart_item_id !== cartItemId));
+    setCartItems((prevItems) => {
+      const updated = prevItems.filter((item) => item.cart_item_id !== cartItemId && item.id !== cartItemId);
+      localStorage.setItem('myntra_cart', JSON.stringify(updated));
+      return updated;
+    });
 
     try {
       await fetch(`${API_BASE_URL}/cart/${cartItemId}`, {
@@ -84,7 +106,6 @@ export const CartProvider = ({ children }) => {
       });
     } catch (err) {
       console.error('Failed to remove from cart on server', err);
-      fetchCart(); // revert on failure
     }
   };
 
@@ -93,13 +114,15 @@ export const CartProvider = ({ children }) => {
 
     // Optimistic UI update
     setCartItems((prevItems) => {
-      return prevItems.map((item) => {
-        if (item.cart_item_id === cartItemId) {
+      const updated = prevItems.map((item) => {
+        if (item.cart_item_id === cartItemId || item.id === productId) {
           const newQuantity = Math.max(1, item.quantity + amount);
           return { ...item, quantity: newQuantity };
         }
         return item;
       });
+      localStorage.setItem('myntra_cart', JSON.stringify(updated));
+      return updated;
     });
 
     try {
@@ -109,18 +132,17 @@ export const CartProvider = ({ children }) => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}` 
         },
-        // Reusing the POST endpoint which adds 'amount' to the existing quantity for the given product and size
         body: JSON.stringify({ productId: productId, quantity: amount, size })
       });
     } catch (err) {
       console.error('Failed to update quantity on server', err);
-      fetchCart(); // revert on failure
     }
   };
 
   const clearCart = async () => {
-    if (!token) return;
     setCartItems([]);
+    localStorage.removeItem('myntra_cart');
+    if (!token) return;
     try {
       await fetch(`${API_BASE_URL}/cart`, {
         method: 'DELETE',
@@ -131,8 +153,8 @@ export const CartProvider = ({ children }) => {
     }
   };
 
-  const cartTotal = cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
-  const totalItems = cartItems.reduce((total, item) => total + item.quantity, 0);
+  const cartTotal = cartItems.reduce((total, item) => total + (item.price || 0) * (item.quantity || 1), 0);
+  const totalItems = cartItems.reduce((total, item) => total + (item.quantity || 1), 0);
 
   return (
     <CartContext.Provider value={{ 

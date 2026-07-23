@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 
 import { API_BASE_URL } from '../config';
@@ -7,10 +8,28 @@ import { useToast } from '../context/ToastContext';
 
 const Cart = () => {
   const { cartItems, removeFromCart, updateQuantity, cartTotal, totalItems } = useCart();
+  const { user, token } = useAuth();
   const { showToast } = useToast();
   const [couponInput, setCouponInput] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState('');
   const [discountAmount, setDiscountAmount] = useState(0);
+  const [defaultAddress, setDefaultAddress] = useState(null);
+
+  useEffect(() => {
+    if (token) {
+      fetch(`${API_BASE_URL}/profile/addresses`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          const def = data.find(a => a.is_default) || data[0];
+          setDefaultAddress(def);
+        }
+      })
+      .catch(err => console.error(err));
+    }
+  }, [token]);
 
   // Calculate some mock values based on Myntra's real UI
   const totalMRP = cartItems.reduce((acc, item) => acc + (item.originalPrice * item.quantity), 0);
@@ -81,14 +100,18 @@ const Cart = () => {
       <div className="w-full md:w-[65%] flex flex-col gap-4">
         
         {/* Address Banner */}
-        <div className="flex justify-between items-center p-4 border border-[#eaeaec] rounded-[4px]">
+        <div className="flex justify-between items-center p-4 border border-[#eaeaec] rounded-[4px] bg-white">
           <div>
-            <p className="text-[14px] text-[#282c3f]">Deliver to: <span className="font-bold">Sahil, 110001</span></p>
-            <p className="text-[12px] text-[#7e818c] mt-1">Connaught Place, New Delhi</p>
+            <p className="text-[14px] text-[#282c3f]">
+              Deliver to: <span className="font-bold">{defaultAddress ? `${defaultAddress.name}, ${defaultAddress.pincode}` : (user?.name ? `${user.name}` : 'Select Delivery Address')}</span>
+            </p>
+            <p className="text-[12px] text-[#7e818c] mt-1">
+              {defaultAddress ? `${defaultAddress.address_line}, ${defaultAddress.city}, ${defaultAddress.state}` : 'Add or select a delivery address for seamless checkout'}
+            </p>
           </div>
-          <button className="text-[#ff3f6c] text-[12px] font-bold uppercase border border-[#ff3f6c] px-4 py-2 rounded-[4px]">
-            Change Address
-          </button>
+          <Link to="/checkout" className="text-[#ff3f6c] text-[12px] font-bold uppercase border border-[#ff3f6c] px-4 py-2 rounded-[4px] hover:bg-[#ff3f6c] hover:text-white transition-colors">
+            {defaultAddress ? 'Change Address' : 'Add Address'}
+          </Link>
         </div>
 
         {/* Offers Banner */}
