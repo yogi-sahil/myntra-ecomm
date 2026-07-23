@@ -16,11 +16,12 @@ const Checkout = () => {
   const [selectedAddressId, setSelectedAddressId] = useState(null);
 
   const [addressData, setAddressData] = useState({
+    name: user?.name || '',
     street: '',
     city: '',
     state: '',
     pincode: '',
-    mobile: ''
+    mobile: user?.mobile || ''
   });
 
   const navigate = useNavigate();
@@ -31,33 +32,48 @@ const Checkout = () => {
   const finalTotal = cartTotal - discountFromCart + convenienceFee;
 
   useEffect(() => {
+    if (user) {
+      setAddressData(prev => ({
+        ...prev,
+        name: prev.name || user.name || '',
+        mobile: prev.mobile || user.mobile || ''
+      }));
+    }
+  }, [user]);
+
+  useEffect(() => {
     if (token) {
       fetch(`${API_BASE_URL}/profile/addresses`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       .then(res => res.json())
       .then(data => {
-        setSavedAddresses(data);
-        if (data.length === 0) {
-          setShowAddressForm(true);
-        } else {
-          // pre-select the default or the first address
-          const defaultAddress = data.find(a => a.is_default) || data[0];
-          setSelectedAddressId(defaultAddress.id);
-          populateAddressData(defaultAddress);
+        if (Array.isArray(data)) {
+          setSavedAddresses(data);
+          if (data.length === 0) {
+            setShowAddressForm(true);
+          } else {
+            // pre-select the default or the first address
+            const defaultAddress = data.find(a => a.is_default) || data[0];
+            setSelectedAddressId(defaultAddress.id);
+            populateAddressData(defaultAddress);
+          }
         }
       })
       .catch(err => console.error(err));
+    } else {
+      setShowAddressForm(true);
     }
   }, [token]);
 
   const populateAddressData = (address) => {
     setAddressData({
-      street: address.address_line,
-      city: address.city,
-      state: address.state,
-      pincode: address.pincode,
-      mobile: address.mobile
+      name: address.name || user?.name || '',
+      street: address.address_line || address.street || '',
+      city: address.city || '',
+      state: address.state || '',
+      pincode: address.pincode || '',
+      mobile: address.mobile || user?.mobile || ''
     });
   };
 
@@ -65,6 +81,53 @@ const Checkout = () => {
     setSelectedAddressId(address.id);
     populateAddressData(address);
     setShowAddressForm(false);
+  };
+
+  const handleSaveAddressAndContinue = async () => {
+    if (!addressData.street || !addressData.city || !addressData.state || !addressData.pincode || !addressData.mobile) {
+      showToast('Please fill all required address fields (Street, City, State, Pincode, Mobile)', 'error');
+      return;
+    }
+
+    if (showAddressForm && token) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/profile/addresses`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}` 
+          },
+          body: JSON.stringify({
+            name: addressData.name || user?.name || 'Customer',
+            mobile: addressData.mobile,
+            pincode: addressData.pincode,
+            address_line: addressData.street,
+            city: addressData.city,
+            state: addressData.state,
+            is_default: savedAddresses.length === 0
+          })
+        });
+
+        if (res.ok) {
+          showToast('Address saved successfully! 📍', 'success');
+          // Re-fetch saved addresses
+          const updatedRes = await fetch(`${API_BASE_URL}/profile/addresses`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (updatedRes.ok) {
+            const data = await updatedRes.json();
+            if (Array.isArray(data)) {
+              setSavedAddresses(data);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to save address:', err);
+      }
+    }
+
+    setShowAddressForm(false);
+    setStep(2);
   };
 
   const handlePlaceOrder = async () => {
@@ -210,57 +273,58 @@ const Checkout = () => {
                   <div className="flex flex-col gap-3">
                     <input 
                       type="text" 
-                      placeholder="Street Address" 
+                      placeholder="Full Name *" 
+                      value={addressData.name}
+                      onChange={(e) => setAddressData({...addressData, name: e.target.value})}
+                      className="w-full border border-[#d4d5d9] p-3 text-[13px] outline-none focus:border-[#282c3f] rounded-sm"
+                    />
+                    <input 
+                      type="text" 
+                      placeholder="Street Address / House No / Building *" 
                       value={addressData.street}
                       onChange={(e) => setAddressData({...addressData, street: e.target.value})}
-                      className="w-full border border-[#d4d5d9] p-3 text-[13px] outline-none focus:border-[#282c3f]"
+                      className="w-full border border-[#d4d5d9] p-3 text-[13px] outline-none focus:border-[#282c3f] rounded-sm"
                     />
                     <div className="flex gap-3">
                       <input 
                         type="text" 
-                        placeholder="City" 
+                        placeholder="City *" 
                         value={addressData.city}
                         onChange={(e) => setAddressData({...addressData, city: e.target.value})}
-                        className="w-1/2 border border-[#d4d5d9] p-3 text-[13px] outline-none focus:border-[#282c3f]"
+                        className="w-1/2 border border-[#d4d5d9] p-3 text-[13px] outline-none focus:border-[#282c3f] rounded-sm"
                       />
                       <input 
                         type="text" 
-                        placeholder="State" 
+                        placeholder="State *" 
                         value={addressData.state}
                         onChange={(e) => setAddressData({...addressData, state: e.target.value})}
-                        className="w-1/2 border border-[#d4d5d9] p-3 text-[13px] outline-none focus:border-[#282c3f]"
+                        className="w-1/2 border border-[#d4d5d9] p-3 text-[13px] outline-none focus:border-[#282c3f] rounded-sm"
                       />
                     </div>
                     <div className="flex gap-3">
                       <input 
                         type="text" 
-                        placeholder="Pincode" 
+                        placeholder="Pincode *" 
                         value={addressData.pincode}
                         onChange={(e) => setAddressData({...addressData, pincode: e.target.value})}
-                        className="w-1/2 border border-[#d4d5d9] p-3 text-[13px] outline-none focus:border-[#282c3f]"
+                        className="w-1/2 border border-[#d4d5d9] p-3 text-[13px] outline-none focus:border-[#282c3f] rounded-sm"
                       />
                       <input 
                         type="text" 
-                        placeholder="Mobile Number" 
+                        placeholder="Mobile Number *" 
                         value={addressData.mobile}
                         onChange={(e) => setAddressData({...addressData, mobile: e.target.value})}
-                        className="w-1/2 border border-[#d4d5d9] p-3 text-[13px] outline-none focus:border-[#282c3f]"
+                        className="w-1/2 border border-[#d4d5d9] p-3 text-[13px] outline-none focus:border-[#282c3f] rounded-sm"
                       />
                     </div>
                   </div>
                 )}
                 
                 <button 
-                  onClick={() => {
-                    if(!addressData.street || !addressData.city || !addressData.state || !addressData.pincode || !addressData.mobile) {
-                      showToast('Please fill all address fields or select an address', 'error');
-                      return;
-                    }
-                    setStep(2);
-                  }}
+                  onClick={handleSaveAddressAndContinue}
                   className="w-full bg-[#ff3f6c] text-white font-bold py-3 text-[14px] rounded-[2px] mt-4 hover:bg-[#e11b4c] transition-colors"
                 >
-                  CONTINUE TO PAYMENT
+                  SAVE & CONTINUE TO PAYMENT
                 </button>
               </div>
             </div>
