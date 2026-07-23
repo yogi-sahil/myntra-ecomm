@@ -24,12 +24,29 @@ const Cart = () => {
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
           const def = data.find(a => a.is_default) || data[0];
-          setDefaultAddress(def);
         }
       })
       .catch(err => console.error(err));
     }
   }, [token]);
+
+  const getCategorySmartSize = (item) => {
+    if (item.size && item.size !== 'M') return item.size;
+    const text = (item.category || item.category_name || item.title || item.brand || '').toLowerCase();
+    if (text.includes('beauty') || text.includes('makeup') || text.includes('cosmetic') || text.includes('cream') || text.includes('powder') || text.includes('tone') || text.includes('lakme') || text.includes('skincare')) {
+      return '50g / Standard';
+    }
+    if (text.includes('perfume') || text.includes('fragrance') || text.includes('spray')) {
+      return '100ml';
+    }
+    if (text.includes('watch') || text.includes('jewel') || text.includes('accessory') || text.includes('bag') || text.includes('sunglass')) {
+      return 'One Size';
+    }
+    if (text.includes('shoe') || text.includes('footwear') || text.includes('sneaker')) {
+      return item.size || 'UK 8';
+    }
+    return item.size || 'M';
+  };
 
   // Calculate some values based on Myntra's real UI
   const totalMRP = cartItems.reduce((acc, item) => {
@@ -161,7 +178,7 @@ const Cart = () => {
                   
                   <div className="flex items-center gap-2 mt-2">
                     <button className="bg-gray-100 px-2 py-1 text-[12px] font-bold text-[#282c3f] rounded-[2px] flex items-center gap-1">
-                      Size: {item.size || 'M'} 
+                      Size: {getCategorySmartSize(item)} 
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                       </svg>

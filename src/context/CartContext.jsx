@@ -51,22 +51,42 @@ export const CartProvider = ({ children }) => {
     }
   };
 
-  const addToCart = async (product, size = 'M') => {
+  const getSmartSize = (prod) => {
+    if (prod && prod.size) return prod.size;
+    const cat = (prod?.category || prod?.category_name || prod?.title || prod?.brand || '').toLowerCase();
+    if (cat.includes('beauty') || cat.includes('makeup') || cat.includes('cosmetic') || cat.includes('cream') || cat.includes('powder') || cat.includes('tone') || cat.includes('lakme') || cat.includes('skincare')) {
+      return 'Standard';
+    }
+    if (cat.includes('perfume') || cat.includes('fragrance') || cat.includes('spray')) {
+      return '100ml';
+    }
+    if (cat.includes('watch') || cat.includes('jewel') || cat.includes('accessory') || cat.includes('bag') || cat.includes('sunglass')) {
+      return 'One Size';
+    }
+    if (cat.includes('shoe') || cat.includes('footwear') || cat.includes('sneaker')) {
+      return 'UK 8';
+    }
+    return 'M';
+  };
+
+  const addToCart = async (product, size = null) => {
     if (!token) {
       showToast('Please login to add items to bag', 'error');
       return;
     }
+
+    const effectiveSize = size || getSmartSize(product);
     
     // Optimistic UI update
     setCartItems((prevItems) => {
-      const existingItem = prevItems.find((item) => item.id === product.id && item.size === size);
+      const existingItem = prevItems.find((item) => item.id === product.id && item.size === effectiveSize);
       let updated;
       if (existingItem) {
         updated = prevItems.map((item) =>
-          item.id === product.id && item.size === size ? { ...item, quantity: item.quantity + 1 } : item
+          item.id === product.id && item.size === effectiveSize ? { ...item, quantity: item.quantity + 1 } : item
         );
       } else {
-        updated = [...prevItems, { ...product, quantity: 1, size }];
+        updated = [...prevItems, { ...product, quantity: 1, size: effectiveSize }];
       }
       localStorage.setItem('myntra_cart', JSON.stringify(updated));
       return updated;
@@ -81,7 +101,7 @@ export const CartProvider = ({ children }) => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}` 
         },
-        body: JSON.stringify({ productId: product.id, quantity: 1, size })
+        body: JSON.stringify({ productId: product.id, quantity: 1, size: effectiveSize })
       });
       fetchCart();
     } catch (err) {
