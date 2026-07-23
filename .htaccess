@@ -1,0 +1,12 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Forward /api requests to local Node.js Express server on port 8999
+  RewriteRule ^api/(.*)$ http://127.0.0.1:8999/api/$1 [P,L]
+
+  # Handle React Single Page Application (SPA) routing (e.g. /admin/login)
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /index.html [L]
+</IfModule>
