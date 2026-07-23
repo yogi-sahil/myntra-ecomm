@@ -48,19 +48,21 @@ const Checkout = () => {
       })
       .then(res => res.json())
       .then(data => {
-        if (Array.isArray(data)) {
+        if (Array.isArray(data) && data.length > 0) {
           setSavedAddresses(data);
-          if (data.length === 0) {
-            setShowAddressForm(true);
-          } else {
-            // pre-select the default or the first address
-            const defaultAddress = data.find(a => a.is_default) || data[0];
-            setSelectedAddressId(defaultAddress.id);
-            populateAddressData(defaultAddress);
-          }
+          const defaultAddress = data.find(a => a.is_default) || data[0];
+          setSelectedAddressId(defaultAddress.id);
+          populateAddressData(defaultAddress);
+          setShowAddressForm(false);
+        } else {
+          setSavedAddresses([]);
+          setShowAddressForm(true);
         }
       })
-      .catch(err => console.error(err));
+      .catch(err => {
+        console.error(err);
+        setShowAddressForm(true);
+      });
     } else {
       setShowAddressForm(true);
     }
@@ -269,7 +271,7 @@ const Checkout = () => {
                 )}
 
                 {/* New Address Form */}
-                {showAddressForm && (
+                {(showAddressForm || savedAddresses.length === 0) && (
                   <div className="flex flex-col gap-3">
                     <input 
                       type="text" 

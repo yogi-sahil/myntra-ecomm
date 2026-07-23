@@ -31,9 +31,13 @@ const Cart = () => {
     }
   }, [token]);
 
-  // Calculate some mock values based on Myntra's real UI
-  const totalMRP = cartItems.reduce((acc, item) => acc + (item.originalPrice * item.quantity), 0);
-  const totalDiscount = totalMRP - cartTotal;
+  // Calculate some values based on Myntra's real UI
+  const totalMRP = cartItems.reduce((acc, item) => {
+    const itemOriginal = Number(item.original_price || item.originalPrice || item.price || 0);
+    const qty = Number(item.quantity || 1);
+    return acc + (itemOriginal * qty);
+  }, 0);
+  const totalDiscount = Math.max(0, totalMRP - cartTotal);
   const convenienceFee = 99; // fixed convenience fee
 
   const handleApplyCoupon = async () => {
@@ -176,8 +180,14 @@ const Cart = () => {
 
                   <div className="flex items-center gap-2 mt-4">
                     <span className="text-[14px] font-bold text-[#282c3f]">Rs. {item.price * item.quantity}</span>
-                    <span className="text-[14px] text-[#7e818c] line-through">Rs. {item.originalPrice * item.quantity}</span>
-                    <span className="text-[14px] font-bold text-[#ff905a]">{item.discount}% OFF</span>
+                    {(item.original_price || item.originalPrice) && (
+                      <span className="text-[14px] text-[#7e818c] line-through">
+                        Rs. {Number(item.original_price || item.originalPrice) * item.quantity}
+                      </span>
+                    )}
+                    {item.discount > 0 && (
+                      <span className="text-[14px] font-bold text-[#ff905a]">{item.discount}% OFF</span>
+                    )}
                   </div>
                   <div className="text-[12px] text-[#282c3f] mt-2 flex items-center gap-1">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-600" viewBox="0 0 20 20" fill="currentColor">
