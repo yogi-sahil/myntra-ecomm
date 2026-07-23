@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
+import { ProductGridSkeleton } from '../components/SkeletonLoader';
 import { API_BASE_URL } from '../config';
 
 const API_BASE = API_BASE_URL;
@@ -193,9 +194,7 @@ const ProductList = () => {
         {/* Product Grid */}
         <div className="flex-1">
           {loading ? (
-             <div className="text-center py-20 font-bold text-[#ff3f6c] flex items-center justify-center gap-2">
-               <span className="animate-spin text-2xl">⏳</span> Loading trending products…
-             </div>
+             <ProductGridSkeleton count={8} />
           ) : products.length === 0 ? (
              <div className="text-center py-20 flex flex-col items-center bg-gray-50 rounded-2xl p-8 border border-gray-100">
                <h2 className="text-[20px] font-black text-[#282c3f] mb-2">No matching products found</h2>

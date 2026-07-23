@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 
+import { ProductDetailSkeleton } from '../components/SkeletonLoader';
 import { API_BASE_URL } from '../config';
 
 const ProductDetail = () => {
@@ -34,9 +35,8 @@ const ProductDetail = () => {
 
     fetchProduct();
   }, [id]);
-
-  if (loading) return <div className="pt-32 text-center h-[50vh]">Loading product details...</div>;
-  if (fetchError || !product) return <div className="pt-32 text-center h-[50vh] text-red-500">{fetchError || 'Product not found'}</div>;
+  if (loading) return <ProductDetailSkeleton />;
+  if (fetchError || !product) return <div className="pt-32 text-center h-[50vh] text-red-500 font-bold">{fetchError || 'Product not found'}</div>;
 
   const handleAddToCart = () => {
     if (!selectedSize) {

@@ -1,19 +1,35 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { Link } from 'react-router-dom';
 
+const DEFAULT_FALLBACK_IMG = 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=500&q=80';
+
 const ProductCard = ({ product }) => {
   const { addToCart } = useCart();
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const [imgSrc, setImgSrc] = useState(product.image_url || product.image || DEFAULT_FALLBACK_IMG);
+
+  const handleImageError = () => {
+    if (imgSrc !== DEFAULT_FALLBACK_IMG) {
+      setImgSrc(DEFAULT_FALLBACK_IMG);
+    }
+  };
 
   return (
     <div className="group relative w-full flex flex-col hover:shadow-[0_2px_16px_4px_rgba(40,44,63,0.07)] transition-shadow duration-300 bg-white">
       <Link to={`/product/${product.id}`} className="block">
-        {/* Product Image */}
-        <div className="relative w-full h-[280px] overflow-hidden">
+        {/* Product Image Container with Skeleton Loader */}
+        <div className="relative w-full h-[280px] overflow-hidden bg-gray-100">
+          {!imgLoaded && (
+            <div className="absolute inset-0 bg-gray-200 animate-pulse" />
+          )}
           <img 
-            src={product.image_url || product.image} 
+            src={imgSrc} 
             alt={product.title} 
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            loading="lazy"
+            onLoad={() => setImgLoaded(true)}
+            onError={handleImageError}
+            className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-500 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
           />
           {/* Rating Badge */}
           <div className="absolute bottom-2 left-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-[2px] flex items-center gap-1 text-[12px] font-bold text-[#282c3f]">
@@ -46,7 +62,7 @@ const ProductCard = ({ product }) => {
       <div className="absolute bottom-0 left-0 right-0 p-3 bg-white translate-y-full group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-300 z-20 shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
         <button 
           onClick={() => addToCart(product)}
-          className="w-full py-2.5 border border-[#d4d5d9] rounded-[2px] text-[14px] font-bold text-[#282c3f] flex items-center justify-center gap-2 hover:border-[#ff3f6c] transition-colors"
+          className="w-full py-2.5 border border-[#d4d5d9] rounded-[2px] text-[14px] font-bold text-[#282c3f] flex items-center justify-center gap-2 hover:border-[#ff3f6c] hover:text-[#ff3f6c] transition-colors"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />

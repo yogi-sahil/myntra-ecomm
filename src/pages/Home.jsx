@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
+import { CategoryCircleSkeleton, ProductGridSkeleton } from '../components/SkeletonLoader';
 import { API_BASE_URL } from '../config';
 
 const API_BASE = API_BASE_URL;
@@ -122,7 +123,7 @@ const Home = () => {
         </div>
 
         {loading ? (
-          <div className="py-16 text-center text-[#ff3f6c] font-bold text-lg animate-pulse">Loading 50+ fashion categories…</div>
+          <CategoryCircleSkeleton />
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
             {categories.slice(0, 24).map((cat, idx) => {
@@ -188,7 +189,7 @@ const Home = () => {
         </div>
 
         {loading ? (
-          <div className="py-12 text-center text-gray-400 font-bold">Loading deals…</div>
+          <ProductGridSkeleton count={4} />
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {topDeals.map((product) => (

@@ -49,15 +49,20 @@ const Header = () => {
     { title: 'Footwear', items: ['Flats', 'Casual Shoes', 'Heels', 'Boots', 'Sports Shoes'] }
   ];
 
-  const kidsCategories = [
-    { title: 'Boys Clothing', items: ['T-Shirts', 'Shirts', 'Shorts', 'Jeans', 'Clothing Sets', 'Ethnic Wear'] },
-    { title: 'Girls Clothing', items: ['Dresses', 'Tops', 'Clothing Sets', 'Lehenga choli', 'Kurta Sets'] },
-    { title: 'Footwear', items: ['Casual Shoes', 'Flipflops', 'Sports Shoes', 'Sandals', 'School Shoes'] }
+  const beautyCategories = [
+    { title: 'Makeup & Cosmetics', items: ['Strobe Cream', 'Highlighter', 'Makeup Kits', 'Mascara', 'Foundation', 'Lipsticks', 'Makeup Fixer'] },
+    { title: 'Fragrances & Perfumes', items: ['Women Perfumes', 'Men Perfumes', 'Fragrances'] },
+    { title: 'Skincare & Grooming', items: ['Skincare', 'Grooming'] }
+  ];
+
+  const watchesCategories = [
+    { title: 'Watches Collection', items: ['Watches', 'Smartwatches'] },
+    { title: 'Top Brands', items: ['Fossil', 'Casio', 'Apple', 'Puma'] }
   ];
 
   const MegaMenu = ({ categories }) => (
     <div className="absolute top-[80px] left-0 w-full bg-white shadow-xl border-t border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50">
-      <div className="max-w-[1200px] mx-auto flex justify-start gap-12 p-8 h-[380px]">
+      <div className="max-w-[1200px] mx-auto flex justify-start gap-12 p-8 min-h-[300px]">
         {categories.map((col, idx) => (
           <div key={idx} className="flex flex-col w-[200px]">
             <span className="text-[#ee5f73] font-bold text-[14px] mb-4">{col.title}</span>
@@ -112,29 +117,31 @@ const Header = () => {
           <nav className="hidden lg:flex h-full">
             <ul className="flex items-center h-full font-bold text-[13px] uppercase text-[#282c3f] tracking-[0.5px]">
               <li className="group cursor-pointer h-full px-4 flex items-center hover:border-b-4 hover:border-[#ee5f73] transition-colors">
-                <Link to="/products">Men</Link>
+                <Link to="/products?category=Men%20T-Shirts">Men</Link>
                 <MegaMenu categories={menCategories} />
               </li>
               
               <li className="group cursor-pointer h-full px-4 flex items-center hover:border-b-4 hover:border-[#fb56c1] transition-colors">
-                <Link to="/products">Women</Link>
+                <Link to="/products?category=Women%20Sarees">Women</Link>
                 <MegaMenu categories={womenCategories} />
               </li>
               
               <li className="group cursor-pointer h-full px-4 flex items-center hover:border-b-4 hover:border-[#f26a10] transition-colors">
-                <Link to="/products">Kids</Link>
+                <Link to="/products?category=Kids%20Clothing">Kids</Link>
                 <MegaMenu categories={kidsCategories} />
               </li>
               
-              <li className="cursor-pointer h-full px-4 flex items-center hover:border-b-4 hover:border-[#f2c210] transition-colors">
+              <li className="group cursor-pointer h-full px-4 flex items-center hover:border-b-4 hover:border-[#f2c210] transition-colors">
                 <Link to="/products?category=Watches">Watches</Link>
+                <MegaMenu categories={watchesCategories} />
               </li>
               
-              <li className="cursor-pointer h-full px-4 flex items-center hover:border-b-4 hover:border-[#0db7af] transition-colors">
-                <Link to="/products?category=Beauty">Beauty</Link>
+              <li className="group cursor-pointer h-full px-4 flex items-center hover:border-b-4 hover:border-[#0db7af] transition-colors">
+                <Link to="/products?category=Makeup">Beauty</Link>
+                <MegaMenu categories={beautyCategories} />
               </li>
 
-              <li className="cursor-pointer h-full px-4 flex items-center hover:border-b-4 hover:border-[#ff3f6c] transition-colors relative">
+              <li className="group cursor-pointer h-full px-4 flex items-center hover:border-b-4 hover:border-[#ff3f6c] transition-colors relative">
                 <Link to="/products">Studio</Link>
                 <span className="absolute top-[22px] right-[-8px] text-[#ff3f6c] text-[9px] uppercase font-black">New</span>
               </li>
