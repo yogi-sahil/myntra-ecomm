@@ -49,6 +49,12 @@ const Header = () => {
     { title: 'Footwear', items: ['Flats', 'Casual Shoes', 'Heels', 'Boots', 'Sports Shoes'] }
   ];
 
+  const kidsCategories = [
+    { title: 'Boys Clothing', items: ['T-Shirts', 'Shirts', 'Shorts', 'Jeans', 'Clothing Sets', 'Ethnic Wear'] },
+    { title: 'Girls Clothing', items: ['Dresses', 'Tops', 'Clothing Sets', 'Lehenga choli', 'Kurta Sets'] },
+    { title: 'Footwear', items: ['Casual Shoes', 'Flipflops', 'Sports Shoes', 'Sandals', 'School Shoes'] }
+  ];
+
   const beautyCategories = [
     { title: 'Makeup & Cosmetics', items: ['Strobe Cream', 'Highlighter', 'Makeup Kits', 'Mascara', 'Foundation', 'Lipsticks', 'Makeup Fixer'] },
     { title: 'Fragrances & Perfumes', items: ['Women Perfumes', 'Men Perfumes', 'Fragrances'] },
