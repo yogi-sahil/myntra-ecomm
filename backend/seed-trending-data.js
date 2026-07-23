@@ -12,7 +12,9 @@ const categoriesData = [
   'Sleepwear', 'Caps & Hats', 'Boots', 'Loafers', 'Sandals',
   'Flip Flops', 'Winterwear', 'Innerwear', 'Western Wear', 'Traditional Wear',
   'Fusion Wear', 'Plus Size Fashion', 'Loungewear', 'Beachwear', 'Cargo Pants',
-  'Athletic Wear', 'Smartwatches', 'Travel Bags'
+  'Athletic Wear', 'Smartwatches', 'Travel Bags', 'Strobe Cream', 'Highlighter',
+  'Makeup Kits', 'Mascara', 'Foundation', 'Lipsticks', 'Makeup Fixer',
+  'Women Perfumes', 'Men Perfumes', 'Skincare'
 ];
 
 const makeSlug = (name) => name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -141,7 +143,51 @@ const sampleProducts = [
   { title: "Nike Air Max 270 React Unisex Running Shoes", brand: "Nike", category: "Sneakers", orig: 12995, disc: 40, img: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80", stock: 45, sizes: "7,8,9,10,11" },
   { title: "Puma Unisex Black Duffel Gym Bag", brand: "Puma", category: "Travel Bags", orig: 2499, disc: 50, img: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800&q=80", stock: 80, sizes: "Medium" },
   { title: "All About You Women Floral Print Crop Top", brand: "All About You", category: "Western Wear", orig: 1499, disc: 50, img: "https://images.unsplash.com/photo-1564257631407-4deb12544e89?w=800&q=80", stock: 90, sizes: "XS,S,M,L" },
-  { title: "Wildcraft Waterproof Rain Jacket", brand: "Wildcraft", category: "Winterwear", orig: 2299, disc: 50, img: "https://images.unsplash.com/photo-1544441893-675973e31985?w=800&q=80", stock: 100, sizes: "M,L,XL" }
+  { title: "Wildcraft Waterproof Rain Jacket", brand: "Wildcraft", category: "Winterwear", orig: 2299, disc: 50, img: "https://images.unsplash.com/photo-1544441893-675973e31985?w=800&q=80", stock: 100, sizes: "M,L,XL" },
+
+  // Makeup & Beauty Products (from WhatsApp screenshot reference images)
+  { title: "Sotrue Strobe Cream - 30gm | Instant Illumination (Pink)", brand: "Sotrue", category: "Strobe Cream", orig: 349, disc: 28, img: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&q=80", stock: 100, sizes: "30g" },
+  { title: "Sotrue Strobe Cream Gold & Pink Metallic Makeup", brand: "Sotrue", category: "Strobe Cream", orig: 698, disc: 38, img: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=800&q=80", stock: 85, sizes: "30g Combo" },
+  { title: "Vellasio Strobe Cream Gold & Blush Pink Combo", brand: "Vellasio", category: "Strobe Cream", orig: 998, disc: 73, img: "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?w=800&q=80", stock: 60, sizes: "30g x 2" },
+  { title: "MARS 2in1 Volumizing and Lengthening Mascara", brand: "MARS", category: "Mascara", orig: 299, disc: 10, img: "https://images.unsplash.com/photo-1591360236480-4ed861025fa1?w=800&q=80", stock: 140, sizes: "Standard" },
+  { title: "LOVE HUDA Makeup Book Palette All In 1 Eyeshadow & Lips", brand: "LOVE HUDA", category: "Makeup Kits", orig: 2999, disc: 76, img: "https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?w=800&q=80", stock: 45, sizes: "Full Palette" },
+  { title: "JNONI Makeup Kit Combo Of 10 Luxury Products", brand: "JNONI", category: "Makeup Kits", orig: 599, disc: 58, img: "https://images.unsplash.com/photo-1526045612212-70caf35c14df?w=800&q=80", stock: 75, sizes: "10-in-1 Kit" },
+  { title: "Juice Crush Glazed Strobe Cream Radiance Booster", brand: "Juice Crush", category: "Strobe Cream", orig: 499, disc: 47, img: "https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?w=800&q=80", stock: 90, sizes: "30g" },
+  { title: "Leiseette's Trends Women Complete Makeup Set", brand: "Leiseette's", category: "Makeup Kits", orig: 1999, disc: 87, img: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=800&q=80", stock: 55, sizes: "Full Kit" },
+  { title: "Orgatre Moodbliss Strobe Glow Cream 30gm", brand: "Orgatre", category: "Strobe Cream", orig: 310, disc: 43, img: "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=800&q=80", stock: 110, sizes: "30g" },
+  { title: "Charmacy Milano Foundation 02 24hr Long Stay SPF 25", brand: "Charmacy Milano", category: "Foundation", orig: 1099, disc: 8, img: "https://images.unsplash.com/photo-1631729371254-42c2892f0e6e?w=800&q=80", stock: 50, sizes: "30ml Shade 02" },
+  { title: "Hilary Rhoda Skin Shine Strobe Cream Pink Champagne", brand: "Hilary Rhoda", category: "Strobe Cream", orig: 249, disc: 18, img: "https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=800&q=80", stock: 95, sizes: "30g" },
+  { title: "SHREEVALAM Makeup Brush Organizer & Mixing Palette", brand: "SHREEVALAM", category: "Makeup Kits", orig: 599, disc: 62, img: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&q=80", stock: 130, sizes: "Steel Palette + Spatula" },
+  { title: "MARS 3 Red and Maroon Matte Lipstick Box Set", brand: "MARS", category: "Lipsticks", orig: 447, disc: 21, img: "https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=800&q=80", stock: 120, sizes: "Pack of 3" },
+  { title: "Vellasio Glow Ultra Makeup Fixer Setting Spray", brand: "Vellasio", category: "Makeup Fixer", orig: 499, disc: 60, img: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=800&q=80", stock: 80, sizes: "100ml" },
+
+  // Women Perfumes & Fragrances (from reference screenshots)
+  { title: "Mamaearth Into the Valley Premium Perfume for Women", brand: "Mamaearth", category: "Women Perfumes", orig: 899, disc: 32, img: "https://images.unsplash.com/photo-1541643600914-78b084683601?w=800&q=80", stock: 65, sizes: "50ml" },
+  { title: "BELLAVITA MYSTIC BLOOM Eau De Parfum for Women", brand: "BELLAVITA", category: "Women Perfumes", orig: 1299, disc: 73, img: "https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=800&q=80", stock: 110, sizes: "100ml" },
+  { title: "BELLAVITA BE ICONIC Luxury Perfume Gift Set 4x20ml", brand: "BELLAVITA", category: "Women Perfumes", orig: 849, disc: 53, img: "https://images.unsplash.com/photo-1547887537-6158d64c35b3?w=800&q=80", stock: 90, sizes: "4x20ml Gift Pack" },
+  { title: "BELLAVITA DATE & SENORITA Perfume Combo for Women", brand: "BELLAVITA", category: "Women Perfumes", orig: 749, disc: 73, img: "https://images.unsplash.com/photo-1523293182086-7651a899d37f?w=800&q=80", stock: 140, sizes: "2x20ml Pack" },
+  { title: "OSCAR Luxury Women Perfume Gift Set Combo", brand: "OSCAR", category: "Women Perfumes", orig: 849, disc: 65, img: "https://images.unsplash.com/photo-1588405748880-12d1d2a59f75?w=800&q=80", stock: 75, sizes: "Pack of 4" },
+  { title: "CARLTON LONDON Euphoria Women Perfume Gift Set", brand: "CARLTON LONDON", category: "Women Perfumes", orig: 2490, disc: 70, img: "https://images.unsplash.com/photo-1616949755610-8c9bbc08f138?w=800&q=80", stock: 50, sizes: "4x50ml" },
+  { title: "MINARA Luxury Woman Eau De Parfum Gift Set", brand: "MINARA", category: "Women Perfumes", orig: 999, disc: 81, img: "https://images.unsplash.com/photo-1594035910387-fea47794261f?w=800&q=80", stock: 85, sizes: "Pack of 2" },
+  { title: "SKINN by TITAN Celeste Eau de Parfum 50ml", brand: "SKINN by TITAN", category: "Women Perfumes", orig: 1995, disc: 13, img: "https://images.unsplash.com/photo-1563178406-4cdc2923acbc?w=800&q=80", stock: 40, sizes: "50ml" },
+
+  // Men Perfumes & Fragrances (from reference screenshots)
+  { title: "Wild Stone Edge Perfume Eau de Parfum for Men", brand: "Wild Stone", category: "Men Perfumes", orig: 499, disc: 48, img: "https://images.unsplash.com/photo-1523293182086-7651a899d37f?w=800&q=80", stock: 120, sizes: "50ml" },
+  { title: "YUVVA LUXURY Yuva Shanaya & Royal King Perfume Set", brand: "YUVVA LUXURY", category: "Men Perfumes", orig: 399, disc: 46, img: "https://images.unsplash.com/photo-1594035910387-fea47794261f?w=800&q=80", stock: 85, sizes: "2x20ml" },
+  { title: "BEARDO Godfather & Whisky Smoke EDP Perfume Combo", brand: "BEARDO", category: "Men Perfumes", orig: 2400, disc: 68, img: "https://images.unsplash.com/photo-1523293182086-7651a899d37f?w=800&q=80", stock: 60, sizes: "100ml + 50ml" },
+  { title: "BEARDO Whisky Smoke EDP Perfume Strong & Long Lasting", brand: "BEARDO", category: "Men Perfumes", orig: 699, disc: 57, img: "https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=800&q=80", stock: 150, sizes: "50ml" },
+  { title: "BEARDO Whisky Smoke Bourbon Perfume EDP 20ml", brand: "BEARDO", category: "Men Perfumes", orig: 349, disc: 57, img: "https://images.unsplash.com/photo-1547887537-6158d64c35b3?w=800&q=80", stock: 180, sizes: "20ml Pocket Perfume" },
+  { title: "DENVER Hamilton EDP SRK Favorite Luxury Gift Pack", brand: "DENVER", category: "Men Perfumes", orig: 699, disc: 60, img: "https://images.unsplash.com/photo-1616949755610-8c9bbc08f138?w=800&q=80", stock: 95, sizes: "Pack of 4" },
+  { title: "PARK AVENUE Euphoria Eau de Parfum 100ml", brand: "PARK AVENUE", category: "Men Perfumes", orig: 799, disc: 52, img: "https://images.unsplash.com/photo-1588405748880-12d1d2a59f75?w=800&q=80", stock: 70, sizes: "100ml" },
+  { title: "Ajmal KURO EDP Eau de Parfum 90ml For Men", brand: "Ajmal", category: "Men Perfumes", orig: 3000, disc: 40, img: "https://images.unsplash.com/photo-1541643600914-78b084683601?w=800&q=80", stock: 30, sizes: "90ml" },
+  { title: "Adilqadri Shanaya Attar Perfume For Men 10ml", brand: "Adilqadri", category: "Men Perfumes", orig: 399, disc: 44, img: "https://images.unsplash.com/photo-1523293182086-7651a899d37f?w=800&q=80", stock: 110, sizes: "10ml Roll On" },
+  { title: "OSCAR Forever Midnight & Forever Knight Men Perfume Duo", brand: "OSCAR", category: "Men Perfumes", orig: 2298, disc: 85, img: "https://images.unsplash.com/photo-1594035910387-fea47794261f?w=800&q=80", stock: 55, sizes: "2x100ml" },
+
+  // Skincare Essentials (from reference screenshots)
+  { title: "Lakme Melanin Control & Oxidation Protection Power Duo", brand: "Lakme", category: "Skincare", orig: 899, disc: 50, img: "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=800&q=80", stock: 80, sizes: "50g Cream" },
+  { title: "Skin Shine Fresh & Shine Glow Face Cream", brand: "Skin Shine", category: "Skincare", orig: 399, disc: 50, img: "https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=800&q=80", stock: 120, sizes: "50g" },
+  { title: "White Tone Soft & Smooth Brightening Face Powder", brand: "White Tone", category: "Skincare", orig: 180, disc: 33, img: "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?w=800&q=80", stock: 200, sizes: "70g" },
+  { title: "Lotus Herbals Safe Sun UV Screen MatteGel SPF 50", brand: "Lotus Herbals", category: "Skincare", orig: 445, disc: 32, img: "https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?w=800&q=80", stock: 150, sizes: "100g Matte Gel" }
 ];
 
 async function seedTrendingData() {
