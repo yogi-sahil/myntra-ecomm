@@ -380,27 +380,51 @@ const Checkout = () => {
               </div>
               <div className="flex flex-col md:flex-row">
                 {/* Payment Tabs */}
-                <div className="w-full md:w-[40%] bg-gray-50 border-r border-[#eaeaec] flex flex-col">
+                <div className="w-full md:w-[42%] bg-gray-50 border-r border-[#eaeaec] flex flex-col">
                   <button 
-                    onClick={() => setPaymentMethod('razorpay')}
-                    className={`p-4 text-left text-[13px] font-bold transition-all flex items-center justify-between border-l-4 ${paymentMethod === 'razorpay' ? 'text-[#282c3f] bg-white border-[#ff3f6c] shadow-sm' : 'text-[#535766] border-transparent hover:bg-gray-100'}`}
+                    onClick={() => setPaymentMethod('razorpay_all')}
+                    className={`p-3.5 text-left text-[13px] font-bold transition-all flex items-center justify-between border-l-4 ${paymentMethod.startsWith('razorpay') ? 'text-[#282c3f] bg-white border-[#ff3f6c] shadow-sm' : 'text-[#535766] border-transparent hover:bg-gray-100'}`}
                   >
                     <span>Razorpay (UPI / Card / NetBanking)</span>
                     <span className="text-[9px] bg-[#ff3f6c] text-white px-1.5 py-0.5 rounded font-black uppercase">Recommended</span>
                   </button>
 
                   <button 
-                    onClick={() => setPaymentMethod('cod')}
-                    className={`p-4 text-left text-[13px] font-bold transition-all flex items-center justify-between border-l-4 ${paymentMethod === 'cod' ? 'text-[#282c3f] bg-white border-[#ff3f6c] shadow-sm' : 'text-[#535766] border-transparent hover:bg-gray-100'}`}
+                    onClick={() => setPaymentMethod('razorpay_upi')}
+                    className={`p-3.5 text-left text-[13px] font-bold transition-all flex items-center justify-between border-l-4 ${paymentMethod === 'razorpay_upi' ? 'text-[#282c3f] bg-white border-[#ff3f6c] shadow-sm' : 'text-[#535766] border-transparent hover:bg-gray-100'}`}
                   >
-                    <span>Cash On Delivery (COD)</span>
-                    <span className="text-[10px] text-gray-400 font-semibold">Pay at doorstep</span>
+                    <span>UPI (Google Pay / PhonePe / Paytm)</span>
+                    <span className="text-[9px] bg-emerald-600 text-white px-1.5 py-0.5 rounded font-black uppercase">Fastest</span>
+                  </button>
+
+                  <button 
+                    onClick={() => setPaymentMethod('razorpay_card')}
+                    className={`p-3.5 text-left text-[13px] font-bold transition-all flex items-center justify-between border-l-4 ${paymentMethod === 'razorpay_card' ? 'text-[#282c3f] bg-white border-[#ff3f6c] shadow-sm' : 'text-[#535766] border-transparent hover:bg-gray-100'}`}
+                  >
+                    <span>Credit / Debit Card</span>
+                    <span className="text-[9px] text-gray-500 font-semibold">Visa/Master</span>
+                  </button>
+
+                  <button 
+                    onClick={() => setPaymentMethod('razorpay_netbanking')}
+                    className={`p-3.5 text-left text-[13px] font-bold transition-all flex items-center justify-between border-l-4 ${paymentMethod === 'razorpay_netbanking' ? 'text-[#282c3f] bg-white border-[#ff3f6c] shadow-sm' : 'text-[#535766] border-transparent hover:bg-gray-100'}`}
+                  >
+                    <span>Net Banking</span>
+                    <span className="text-[9px] text-gray-500 font-semibold">50+ Banks</span>
+                  </button>
+
+                  <button 
+                    onClick={() => setPaymentMethod('cod')}
+                    className={`p-3.5 text-left text-[13px] font-bold transition-all flex items-center justify-between border-l-4 ${paymentMethod === 'cod' ? 'text-[#282c3f] bg-white border-[#ff3f6c] shadow-sm' : 'text-[#535766] border-transparent hover:bg-gray-100'}`}
+                  >
+                    <span className="text-gray-400">Cash On Delivery (COD)</span>
+                    <span className="text-[9px] bg-amber-500 text-white px-1.5 py-0.5 rounded font-black uppercase">Coming Soon</span>
                   </button>
                 </div>
 
                 {/* Payment Content */}
-                <div className="w-full md:w-[60%] p-6">
-                  {paymentMethod === 'razorpay' ? (
+                <div className="w-full md:w-[58%] p-6">
+                  {paymentMethod.startsWith('razorpay') ? (
                     <div>
                       {/* Razorpay Gateway Branding Card */}
                       <div className="border border-blue-100 bg-blue-50/50 rounded-lg p-5 mb-6">
@@ -408,10 +432,10 @@ const Checkout = () => {
                           <span className="text-[13px] font-black text-[#0c2340] tracking-wider flex items-center gap-1.5">
                             ⚡ RAZORPAY SECURE GATEWAY
                           </span>
-                          <span className="text-[11px] font-bold text-[#03a685] bg-emerald-100 px-2 py-0.5 rounded-full">Official Payment Partner</span>
+                          <span className="text-[11px] font-bold text-[#03a685] bg-emerald-100 px-2 py-0.5 rounded-full">Official Partner</span>
                         </div>
                         <p className="text-[12px] text-gray-600 mb-4 leading-relaxed">
-                          Pay instantly via <strong>Google Pay, PhonePe, Paytm, BHIM UPI, Credit/Debit Cards, NetBanking, or Wallets</strong>.
+                          Pay instantly using your preferred method: <strong>Google Pay, PhonePe, Paytm, BHIM UPI, Credit/Debit Cards, or NetBanking</strong>.
                         </p>
                         {/* Gateway Payment Badges */}
                         <div className="flex flex-wrap gap-2 pt-2 border-t border-blue-100">
@@ -438,19 +462,21 @@ const Checkout = () => {
                     </div>
                   ) : (
                     <div>
-                      <div className="border border-amber-100 bg-amber-50/50 rounded-lg p-5 mb-6">
-                        <h4 className="text-[13px] font-black text-[#282c3f] mb-1">CASH ON DELIVERY</h4>
-                        <p className="text-[12px] text-gray-600">
-                          You can pay in cash to the delivery executive when your parcel arrives at your address.
+                      <div className="border border-amber-200 bg-amber-50 rounded-lg p-5 mb-6">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-[10px] font-black uppercase bg-amber-500 text-white px-2 py-0.5 rounded">COMING SOON</span>
+                          <h4 className="text-[13px] font-black text-[#282c3f]">Cash On Delivery Unavailable</h4>
+                        </div>
+                        <p className="text-[12px] text-gray-600 leading-relaxed">
+                          Cash on Delivery is currently unavailable in your delivery area. Please pay online via <strong>Razorpay Secure Gateway</strong> for 100% safe & instant order confirmation!
                         </p>
                       </div>
 
                       <button 
-                        onClick={handlePlaceCodOrder}
-                        disabled={loading}
-                        className={`w-full text-white font-black py-3.5 text-[15px] rounded-[4px] shadow-md transition-all flex items-center justify-center gap-2 ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#282c3f] hover:bg-black hover:shadow-lg'}`}
+                        onClick={() => setPaymentMethod('razorpay_all')}
+                        className="w-full text-white font-black py-3.5 text-[14px] rounded-[4px] shadow-md bg-[#ff3f6c] hover:bg-[#e11b4c] transition-all flex items-center justify-center gap-2"
                       >
-                        {loading ? 'PLACING ORDER...' : `CONFIRM COD ORDER ₹${finalTotal}`}
+                        SWITCH TO ONLINE PAYMENT (RAZORPAY)
                       </button>
                     </div>
                   )}
