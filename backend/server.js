@@ -59,8 +59,6 @@ app.use('/api/admin/dashboard', protect, adminOnly, dashboardRoutes);
 app.use('/api/admin/categories', protect, adminOnly, categoriesRoutes);
 app.use('/api/admin/settings', protect, adminOnly, settingsRoutes);
 
-const path = require('path');
-const fs = require('fs');
 
 // Create uploads directory if not exists
 const uploadsDir = path.join(__dirname, 'uploads');
