@@ -2,11 +2,15 @@
   RewriteEngine On
   RewriteBase /
 
-  # Forward /api requests to local Node.js Express server on port 8999
-  RewriteRule ^api/(.*)$ http://127.0.0.1:8999/api/$1 [P,L]
+  # Route /api/* requests through PHP proxy to Node.js on port 8999
+  # (mod_proxy not available on Hostinger shared hosting)
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_URI} ^/api
+  RewriteRule ^(.*)$ /api-proxy.php [L,QSA]
 
-  # Handle React Single Page Application (SPA) routing (e.g. /admin/login)
+  # Handle React Single Page Application (SPA) routing
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_URI} !^/api
   RewriteRule . /index.html [L]
 </IfModule>
