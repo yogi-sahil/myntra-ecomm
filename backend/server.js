@@ -1,4 +1,18 @@
-require('dotenv').config();
+const path = require('path');
+const fs = require('fs');
+const os = require('os');
+
+// Smart env loading — survives Hostinger redeployments that delete local .env
+const localEnv = path.join(__dirname, '.env');
+const homeEnv = path.join(os.homedir(), 'backend.env');
+if (fs.existsSync(localEnv)) {
+  require('dotenv').config({ path: localEnv });
+} else if (fs.existsSync(homeEnv)) {
+  require('dotenv').config({ path: homeEnv });
+} else {
+  require('dotenv').config(); // fallback to default
+}
+
 const express = require('express');
 const cors = require('cors');
 
