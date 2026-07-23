@@ -12,9 +12,11 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  
+  const [bannerSrc, setBannerSrc] = useState('https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=800&q=80');
+
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { showToast } = useToast();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -52,10 +54,11 @@ const Login = () => {
     <div className="pt-24 pb-20 min-h-screen bg-[#fceeea] flex justify-center items-start">
       <div className="bg-white w-[400px] mt-10 shadow-sm flex flex-col">
         {/* Banner Image */}
-        <div className="w-full h-[160px] bg-[#fceeea]">
+        <div className="w-full h-[160px] bg-[#fceeea] relative overflow-hidden">
           <img 
-            src="https://assets.myntassets.com/f_webp,dpr_1.5,q_60,w_400,c_limit,fl_progressive/assets/images/2023/10/29/9610ca31-f10f-488d-8a03-722a4d3ee12d1698606409028-Flat_200--1-.jpg" 
+            src={bannerSrc} 
             alt="Login Banner" 
+            onError={() => setBannerSrc('https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=800&q=80')}
             className="w-full h-full object-cover"
           />
         </div>
