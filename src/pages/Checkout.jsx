@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { API_BASE_URL } from '../config';
 
 const Checkout = () => {
   const { cartItems, cartTotal, setCartItems } = useCart();
@@ -29,7 +30,7 @@ const Checkout = () => {
 
   useEffect(() => {
     if (token) {
-      fetch('http://localhost:8999/api/profile/addresses', {
+      fetch(`${API_BASE_URL}/profile/addresses`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       .then(res => res.json())
@@ -68,7 +69,7 @@ const Checkout = () => {
     setLoading(true);
     try {
       // 1. Create Razorpay Order on Backend
-      const orderResponse = await fetch('http://localhost:8999/api/payment/create-order', {
+      const orderResponse = await fetch(`${API_BASE_URL}/payment/create-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: finalTotal })
@@ -89,7 +90,7 @@ const Checkout = () => {
           try {
             const formattedAddress = `${addressData.street}, ${addressData.city}, ${addressData.state} - ${addressData.pincode}`;
             // 3. Verify Payment and Save Order
-            const verifyResponse = await fetch('http://localhost:8999/api/payment/verify', {
+            const verifyResponse = await fetch(`${API_BASE_URL}/payment/verify`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({

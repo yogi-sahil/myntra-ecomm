@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { API_BASE_URL } from '../config';
 
 const Profile = () => {
   const { user, token, logout } = useAuth();
@@ -24,7 +25,7 @@ const Profile = () => {
       setLoading(true);
       try {
         if (activeTab === 'orders') {
-          const response = await fetch('http://localhost:8999/api/orders/my-orders', {
+          const response = await fetch(`${API_BASE_URL}/orders/my-orders`, {
             headers: { Authorization: `Bearer ${token}` }
           });
           if (response.ok) {
@@ -46,7 +47,7 @@ const Profile = () => {
 
   const fetchAddresses = async () => {
     try {
-      const response = await fetch('http://localhost:8999/api/profile/addresses', {
+      const response = await fetch(`${API_BASE_URL}/profile/addresses`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.ok) {
@@ -66,7 +67,7 @@ const Profile = () => {
   const handleAddAddress = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:8999/api/profile/addresses', {
+      const response = await fetch(`${API_BASE_URL}/profile/addresses`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -88,7 +89,7 @@ const Profile = () => {
 
   const handleDeleteAddress = async (id) => {
     try {
-      const response = await fetch(`http://localhost:8999/api/profile/addresses/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/profile/addresses/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });

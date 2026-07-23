@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
+import { API_BASE_URL } from '../config';
 
-const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8999/api').replace(/\/$/, '');
+const API_BASE = API_BASE_URL;
 
 const ProductList = () => {
   const [products, setProducts] = useState([]);

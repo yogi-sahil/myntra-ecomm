@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useAuth } from './AuthContext';
+import { API_BASE_URL } from '../config';
 
 const CartContext = createContext();
 
@@ -19,7 +20,7 @@ export const CartProvider = ({ children }) => {
 
   const fetchCart = async () => {
     try {
-      const response = await fetch('http://localhost:8999/api/cart', {
+      const response = await fetch(`${API_BASE_URL}/cart`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.ok) {
@@ -46,7 +47,7 @@ export const CartProvider = ({ children }) => {
     });
 
     try {
-      await fetch('http://localhost:8999/api/cart', {
+      await fetch(`${API_BASE_URL}/cart`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -69,7 +70,7 @@ export const CartProvider = ({ children }) => {
     setCartItems((prevItems) => prevItems.filter((item) => item.cart_item_id !== cartItemId));
 
     try {
-      await fetch(`http://localhost:8999/api/cart/${cartItemId}`, {
+      await fetch(`${API_BASE_URL}/cart/${cartItemId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -94,7 +95,7 @@ export const CartProvider = ({ children }) => {
     });
 
     try {
-      await fetch('http://localhost:8999/api/cart', {
+      await fetch(`${API_BASE_URL}/cart`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -113,7 +114,7 @@ export const CartProvider = ({ children }) => {
     if (!token) return;
     setCartItems([]);
     try {
-      await fetch('http://localhost:8999/api/cart', {
+      await fetch(`${API_BASE_URL}/cart`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });

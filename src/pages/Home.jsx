@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
+import { API_BASE_URL } from '../config';
 
-const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8999/api').replace(/\/$/, '');
+const API_BASE = API_BASE_URL;
 
 const categoryImageMap = {
   'Men T-Shirts': 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500&q=80',

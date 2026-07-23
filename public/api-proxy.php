@@ -12,6 +12,16 @@ $nodeUrl = 'http://127.0.0.1:8999';
 $requestUri = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '/';
 $method = isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : 'GET';
 
+// Handle CORS Preflight OPTIONS requests
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+
+if ($method === 'OPTIONS') {
+    http_response_code(200);
+    exit(0);
+}
+
 // Build full target URL
 $targetUrl = $nodeUrl . $requestUri;
 

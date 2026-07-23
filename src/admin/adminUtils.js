@@ -1,4 +1,5 @@
-export const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8999/api').replace(/\/$/, '');
+import { API_BASE_URL } from '../config';
+export const API_BASE = API_BASE_URL;
 
 export const getAuthHeaders = (token, includeJson = false) => ({
   ...(includeJson ? { 'Content-Type': 'application/json' } : {}),

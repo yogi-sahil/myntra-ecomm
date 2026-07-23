@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useAuth } from './AuthContext';
+import { API_BASE_URL } from '../config';
 
 const WishlistContext = createContext();
 
@@ -19,7 +20,7 @@ export const WishlistProvider = ({ children }) => {
 
   const fetchWishlist = async () => {
     try {
-      const response = await fetch('http://localhost:8999/api/wishlist', {
+      const response = await fetch(`${API_BASE_URL}/wishlist`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.ok) {
@@ -43,7 +44,7 @@ export const WishlistProvider = ({ children }) => {
     });
 
     try {
-      await fetch('http://localhost:8999/api/wishlist', {
+      await fetch(`${API_BASE_URL}/wishlist`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -63,7 +64,7 @@ export const WishlistProvider = ({ children }) => {
     setWishlistItems((prevItems) => prevItems.filter((item) => item.id !== productId));
 
     try {
-      await fetch(`http://localhost:8999/api/wishlist/${productId}`, {
+      await fetch(`${API_BASE_URL}/wishlist/${productId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });

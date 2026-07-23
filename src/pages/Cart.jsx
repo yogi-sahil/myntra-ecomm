@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { Link } from 'react-router-dom';
 
+import { API_BASE_URL } from '../config';
+
 const Cart = () => {
   const { cartItems, removeFromCart, updateQuantity, cartTotal, totalItems } = useCart();
   const [couponInput, setCouponInput] = useState('');
@@ -16,7 +18,7 @@ const Cart = () => {
   const handleApplyCoupon = async () => {
     if (!couponInput) return;
     try {
-      const response = await fetch('http://localhost:8999/api/coupons/validate', {
+      const response = await fetch(`${API_BASE_URL}/coupons/validate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: couponInput, cartTotal })

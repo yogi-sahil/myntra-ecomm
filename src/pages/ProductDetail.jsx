@@ -3,6 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 
+import { API_BASE_URL } from '../config';
+
 const ProductDetail = () => {
   const { id } = useParams();
   const { addToCart } = useCart();
@@ -17,7 +19,7 @@ const ProductDetail = () => {
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const response = await fetch(`http://localhost:8999/api/products/${id}`);
+        const response = await fetch(`${API_BASE_URL}/products/${id}`);
         if (!response.ok) {
           throw new Error('Product not found');
         }
