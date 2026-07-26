@@ -22,6 +22,7 @@ const { createRateLimit } = require('./middleware/rateLimit');
 const { authAttemptsOnly } = require('./middleware/authAttemptLimiter');
 const { ensureProductionCatalog } = require('./seed_cosmetics_catalog');
 const { ensureProductionAdmin } = require('./adminBootstrap');
+const { ensureProductionOrderSchema } = require('./orderSchema');
 
 validateEnvironment();
 
@@ -202,6 +203,7 @@ process.on('unhandledRejection', (err) => {
 // A failed database bootstrap should fail the deployment instead of serving
 // a storefront whose catalog endpoints return 500 errors.
 async function startServer() {
+  await ensureProductionOrderSchema();
   await ensureProductionCatalog();
   await ensureProductionAdmin();
   app.listen(PORT, '0.0.0.0', () => {
