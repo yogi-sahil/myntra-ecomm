@@ -15,6 +15,7 @@ dist-ssr
 
 # Local exports and source/reference images (not used by the application)
 /myntra_database.sql
+/myntra_db_production*.sql
 /product_image/
 
 # Editor directories and files
