@@ -100,9 +100,9 @@ For Hostinger, deploy the repository as a server-side Node application using
 the repository root, `npm run build` as the build command, and
 `backend/server.js` as the entry file (or `npm start` as the start command).
 The root install automatically installs the backend's production dependencies,
-and Express serves both the React build and `/api` from one origin. Set
-`VITE_API_URL=/api`; `CORS_ORIGINS` should be omitted or empty for this
-same-origin setup.
+builds the React frontend, and Express serves both that build and `/api` from
+one origin. Set `VITE_API_URL=/api`; `CORS_ORIGINS` should be omitted or empty
+for this same-origin setup.
 
 ## Checkout security model
 
