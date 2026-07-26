@@ -12,7 +12,6 @@ const makeSlug = (name) => name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-')
 const AdminCategories = () => {
   const { token } = useAuth();
   const notify = useAdminToast();
-  const formRef = useRef(null);
   const nameRef = useRef(null);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,6 +27,14 @@ const AdminCategories = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const closeForm = useCallback((force = false) => {
+    if (isSaving && !force) return;
+    setShowForm(false);
+    setEditId(null);
+    setFormData(emptyForm);
+    setFormError('');
+    setSlugEdited(false);
+  }, [isSaving]);
 
   const fetchCategories = useCallback(async () => {
     setLoading(true); setError('');
@@ -51,7 +58,7 @@ const AdminCategories = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showForm]);
+  }, [showForm, closeForm]);
 
   const filteredCategories = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -65,8 +72,6 @@ const AdminCategories = () => {
     setSlugEdited(Boolean(category)); setFormError(''); setShowForm(true);
     window.setTimeout(() => { nameRef.current?.focus(); }, 50);
   };
-  const closeForm = (force = false) => { if (isSaving && !force) return; setShowForm(false); setEditId(null); setFormData(emptyForm); setFormError(''); setSlugEdited(false); };
-
   const handleSave = async (event) => {
     event.preventDefault(); setIsSaving(true); setFormError('');
     try {

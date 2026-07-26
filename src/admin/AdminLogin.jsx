@@ -30,7 +30,7 @@ const AdminLogin = () => {
       });
       if (!response.ok) throw new Error(await getApiError(response, 'Unable to sign in. Check your details and try again.'));
       const data = await response.json();
-      login(data.user, data.token);
+      login(data.user);
       navigate('/admin', { replace: true });
     } catch (err) {
       setError(err.message || 'The admin service is unavailable. Please try again.');

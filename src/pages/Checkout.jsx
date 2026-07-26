@@ -1,21 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, Check, CreditCard, LockKeyhole, MapPin, ShieldCheck } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
 import { useToast } from '../context/ToastContext';
 
+const CHECKOUT_COUPON_KEY = 'myntra_checkout_coupon';
+const PRODUCT_FALLBACK = 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=500&q=80';
+const inputClass = 'w-full rounded-md border border-[#d4d5d9] p-3 text-[13px] outline-none transition focus:border-[#ff3f6c] focus:ring-1 focus:ring-[#ff3f6c]';
+
 const Checkout = () => {
-  const { cartItems, cartTotal, setCartItems } = useCart();
+  const { cartItems, cartTotal, clearCart, cartLoading } = useCart();
   const { user, token } = useAuth();
   const { showToast } = useToast();
-  const [step, setStep] = useState(1); // 1: Address, 2: Payment
-  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const [step, setStep] = useState(1);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [addressLoading, setAddressLoading] = useState(true);
+  const [addressSaving, setAddressSaving] = useState(false);
+  const [pricingLoading, setPricingLoading] = useState(true);
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
-  const [paymentMethod, setPaymentMethod] = useState('razorpay');
-
+  const [serverPricing, setServerPricing] = useState(null);
   const [addressData, setAddressData] = useState({
     name: user?.name || '',
     street: '',
@@ -25,33 +35,51 @@ const Checkout = () => {
     mobile: user?.mobile || ''
   });
 
-  const navigate = useNavigate();
-  const location = useLocation();
-  const discountFromCart = location.state?.discountAmount || 0;
+  const couponCode = location.state?.couponCode
+    || sessionStorage.getItem(CHECKOUT_COUPON_KEY)
+    || null;
+  const quoteItems = useMemo(
+    () => cartItems.map((item) => ({ id: item.id, quantity: item.quantity, size: item.size })),
+    [cartItems]
+  );
+  const totalItems = useMemo(
+    () => cartItems.reduce((sum, item) => sum + Number(item.quantity || 1), 0),
+    [cartItems]
+  );
+  const deliveryFee = serverPricing?.shippingFee ?? 0;
+  const discount = serverPricing?.discount ?? 0;
+  const finalTotal = serverPricing?.total ?? cartTotal;
 
-  const convenienceFee = 99;
-  const finalTotal = cartTotal - discountFromCart + convenienceFee;
-
-  useEffect(() => {
-    if (user) {
-      setAddressData(prev => ({
-        ...prev,
-        name: prev.name || user.name || '',
-        mobile: prev.mobile || user.mobile || ''
-      }));
-    }
+  const populateAddressData = useCallback((address) => {
+    setAddressData({
+      name: address.name || user?.name || '',
+      street: address.address_line || address.street || '',
+      city: address.city || '',
+      state: address.state || '',
+      pincode: String(address.pincode || ''),
+      mobile: String(address.mobile || user?.mobile || '')
+    });
   }, [user]);
 
   useEffect(() => {
-    if (token) {
-      fetch(`${API_BASE_URL}/profile/addresses`, {
-        headers: { Authorization: `Bearer ${token}` }
+    if (!token) {
+      setAddressLoading(false);
+      setShowAddressForm(true);
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    setAddressLoading(true);
+    fetch(`${API_BASE_URL}/profile/addresses`, { signal: controller.signal })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Could not load addresses');
+        return data;
       })
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data) && data.length > 0) {
+      .then((data) => {
+        if (data.length) {
+          const defaultAddress = data.find((address) => address.is_default) || data[0];
           setSavedAddresses(data);
-          const defaultAddress = data.find(a => a.is_default) || data[0];
           setSelectedAddressId(defaultAddress.id);
           populateAddressData(defaultAddress);
           setShowAddressForm(false);
@@ -60,25 +88,54 @@ const Checkout = () => {
           setShowAddressForm(true);
         }
       })
-      .catch(err => {
-        console.error(err);
-        setShowAddressForm(true);
+      .catch((error) => {
+        if (error.name !== 'AbortError') {
+          showToast(error.message, 'error');
+          setShowAddressForm(true);
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setAddressLoading(false);
       });
-    } else {
-      setShowAddressForm(true);
-    }
-  }, [token]);
 
-  const populateAddressData = (address) => {
-    setAddressData({
-      name: address.name || user?.name || '',
-      street: address.address_line || address.street || '',
-      city: address.city || '',
-      state: address.state || '',
-      pincode: address.pincode || '',
-      mobile: address.mobile || user?.mobile || ''
-    });
-  };
+    return () => controller.abort();
+  }, [token, populateAddressData, showToast]);
+
+  useEffect(() => {
+    if (!token || quoteItems.length === 0) {
+      setPricingLoading(false);
+      setServerPricing(null);
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setPricingLoading(true);
+      fetch(`${API_BASE_URL}/payment/quote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: quoteItems, couponCode }),
+        signal: controller.signal
+      })
+        .then(async (response) => {
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.message || 'Could not calculate order total');
+          return data;
+        })
+        .then(setServerPricing)
+        .catch((error) => {
+          if (error.name !== 'AbortError') showToast(error.message, 'error');
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setPricingLoading(false);
+        });
+    }, 120);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [token, quoteItems, couponCode, showToast]);
 
   const handleSelectAddress = (address) => {
     setSelectedAddressId(address.id);
@@ -86,22 +143,51 @@ const Checkout = () => {
     setShowAddressForm(false);
   };
 
+  const handleAddNewAddress = () => {
+    setSelectedAddressId(null);
+    setAddressData({
+      name: user?.name || '',
+      street: '',
+      city: '',
+      state: '',
+      pincode: '',
+      mobile: user?.mobile || ''
+    });
+    setShowAddressForm(true);
+  };
+
+  const validateAddress = () => {
+    if (addressData.name.trim().length < 2) return 'Please enter your full name';
+    if (addressData.street.trim().length < 5) return 'Please enter a complete street address';
+    if (addressData.city.trim().length < 2 || addressData.state.trim().length < 2) {
+      return 'Please enter a valid city and state';
+    }
+    if (!/^\d{6}$/.test(addressData.pincode.trim())) return 'Pincode must be exactly 6 digits';
+    if (!/^\d{10,15}$/.test(addressData.mobile.replace(/\D/g, ''))) {
+      return 'Mobile number must contain 10 to 15 digits';
+    }
+    return '';
+  };
+
   const handleSaveAddressAndContinue = async () => {
-    if (!addressData.street || !addressData.city || !addressData.state || !addressData.pincode || !addressData.mobile) {
-      showToast('Please fill all required address fields (Street, City, State, Pincode, Mobile)', 'error');
+    const validationMessage = validateAddress();
+    if (validationMessage) {
+      showToast(validationMessage, 'error');
+      return;
+    }
+    if (!showAddressForm && !selectedAddressId) {
+      showToast('Please select a delivery address', 'error');
       return;
     }
 
     if (showAddressForm && token) {
+      setAddressSaving(true);
       try {
-        const res = await fetch(`${API_BASE_URL}/profile/addresses`, {
+        const response = await fetch(`${API_BASE_URL}/profile/addresses`, {
           method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}` 
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            name: addressData.name || user?.name || 'Customer',
+            name: addressData.name,
             mobile: addressData.mobile,
             pincode: addressData.pincode,
             address_line: addressData.street,
@@ -110,88 +196,63 @@ const Checkout = () => {
             is_default: savedAddresses.length === 0
           })
         });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Could not save address');
 
-        if (res.ok) {
-          showToast('Address saved successfully! 📍', 'success');
-          // Re-fetch saved addresses
-          const updatedRes = await fetch(`${API_BASE_URL}/profile/addresses`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          if (updatedRes.ok) {
-            const data = await updatedRes.json();
-            if (Array.isArray(data)) {
-              setSavedAddresses(data);
-            }
+        let createdAddress = data.address;
+        if (!createdAddress) {
+          const addressesResponse = await fetch(`${API_BASE_URL}/profile/addresses`);
+          const addressesData = await addressesResponse.json();
+          if (!addressesResponse.ok || !Array.isArray(addressesData) || !addressesData.length) {
+            throw new Error('Address was saved, but could not be refreshed');
           }
+          createdAddress = addressesData.find((address) => (
+            address.address_line === addressData.street
+            && String(address.pincode) === String(addressData.pincode)
+          )) || addressesData[0];
         }
-      } catch (err) {
-        console.error('Failed to save address:', err);
+        setSavedAddresses((current) => [createdAddress, ...current]);
+        setSelectedAddressId(createdAddress.id);
+        setShowAddressForm(false);
+        showToast('Address saved successfully! 📍', 'success');
+      } catch (error) {
+        console.error('Failed to save address:', error);
+        showToast(error.message || 'Could not save address', 'error');
+        return;
+      } finally {
+        setAddressSaving(false);
       }
     }
 
-    setShowAddressForm(false);
     setStep(2);
-  };
-
-  const handlePlaceCodOrder = async () => {
-    setLoading(true);
-    try {
-      const formattedAddress = `${addressData.street}, ${addressData.city}, ${addressData.state} - ${addressData.pincode}`;
-      const response = await fetch(`${API_BASE_URL}/payment/cod`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user?.id || 2,
-          totalAmount: finalTotal,
-          shippingAddress: formattedAddress,
-          items: cartItems.map(item => ({
-            id: item.id,
-            quantity: item.quantity,
-            price: item.price
-          }))
-        })
-      });
-
-      if (response.ok) {
-        showToast('COD Order placed successfully! 📦', 'success');
-        setCartItems && setCartItems([]);
-        navigate('/');
-      } else {
-        showToast('Failed to place COD order', 'error');
-      }
-    } catch (err) {
-      console.error(err);
-      showToast('Error placing COD order', 'error');
-    } finally {
-      setLoading(false);
-    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handlePlaceOrder = async () => {
-    setLoading(true);
+    if (paymentLoading || pricingLoading || !serverPricing) return;
+    setPaymentLoading(true);
     try {
-      // 1. Create Razorpay Order on Backend
       const orderResponse = await fetch(`${API_BASE_URL}/payment/create-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: finalTotal })
+        body: JSON.stringify({ couponCode, items: quoteItems })
       });
       const orderData = await orderResponse.json();
+      if (!orderResponse.ok) throw new Error(orderData.message || 'Could not start payment');
+      setServerPricing(orderData.pricing);
 
-      if (!orderResponse.ok) throw new Error(orderData.message);
+      if (!window.Razorpay) throw new Error('Payment gateway failed to load. Please refresh and try again.');
 
-      // 2. Setup Razorpay Options
-      const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_QvFiXZe6iRfjAH', // Public Key
+      const razorpay = new window.Razorpay({
+        key: orderData.keyId,
         amount: orderData.amount,
         currency: orderData.currency,
-        name: 'Myntra',
-        description: 'Test Transaction',
+        name: 'Myntra Cosmetics',
+        description: `${totalItems} item${totalItems > 1 ? 's' : ''}`,
         order_id: orderData.id,
-        handler: async function (response) {
+        handler: async (response) => {
           try {
-            const formattedAddress = `${addressData.street}, ${addressData.city}, ${addressData.state} - ${addressData.pincode}`;
-            // 3. Verify Payment and Save Order
+            const shippingAddress = `${addressData.street}, ${addressData.city}, ${addressData.state} - ${addressData.pincode}`;
             const verifyResponse = await fetch(`${API_BASE_URL}/payment/verify`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -199,530 +260,318 @@ const Checkout = () => {
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
-                userId: user?.id || 2, 
-                totalAmount: finalTotal,
-                shippingAddress: formattedAddress,
-                items: cartItems.map(item => ({
-                  id: item.id,
-                  quantity: item.quantity,
-                  price: item.price
-                }))
+                shippingAddress,
+                couponCode,
+                items: quoteItems
               })
             });
+            const verifyData = await verifyResponse.json();
+            if (!verifyResponse.ok) throw new Error(verifyData.message || 'Payment verification failed');
 
-            if (verifyResponse.ok) {
-              showToast('Payment Successful! Order placed 🎉', 'success');
-              setCartItems && setCartItems([]);
-              navigate('/');
-            } else {
-              showToast('Payment Verification Failed', 'error');
-            }
-          } catch (err) {
-            console.error('Verify error:', err);
-            showToast('Failed to verify payment', 'error');
+            sessionStorage.removeItem(CHECKOUT_COUPON_KEY);
+            showToast('Payment successful! Your order is confirmed 🎉', 'success');
+            await clearCart();
+            navigate('/');
+          } catch (error) {
+            console.error('Payment verification error:', error);
+            showToast(error.message || 'Could not confirm payment. Please contact support.', 'error');
+          } finally {
+            setPaymentLoading(false);
           }
         },
-        prefill: {
-          name: user?.name || 'Customer',
-          email: user?.email || 'customer@myntra.local',
-          contact: addressData.mobile || user?.mobile || '9999999999'
+        modal: {
+          ondismiss: () => setPaymentLoading(false)
         },
-        theme: {
-          color: '#ff3f6c'
-        }
-      };
-
-      // 4. Open Razorpay Checkout Modal
-      const rzp = new window.Razorpay(options);
-      rzp.on('payment.failed', function (response) {
-        showToast('Payment Failed: ' + response.error.description, 'error');
+        prefill: {
+          name: addressData.name || user?.name || 'Customer',
+          email: user?.email || '',
+          contact: addressData.mobile || user?.mobile || ''
+        },
+        theme: { color: '#ff3f6c' }
       });
-      rzp.open();
 
-    } catch (err) {
-      console.error('Checkout error:', err);
-      showToast('Error initiating checkout', 'error');
-    } finally {
-      setLoading(false);
+      razorpay.on('payment.failed', (response) => {
+        setPaymentLoading(false);
+        showToast(response.error?.description || 'Payment failed. Please try again.', 'error');
+      });
+      razorpay.open();
+    } catch (error) {
+      console.error('Checkout error:', error);
+      showToast(error.message || 'Could not start checkout', 'error');
+      setPaymentLoading(false);
     }
   };
 
+  if (cartLoading) {
+    return (
+      <div className="pt-32 min-h-[60vh] max-w-[980px] mx-auto px-4" aria-live="polite">
+        <div className="h-8 w-52 bg-gray-200 rounded animate-pulse mb-8" />
+        <div className="grid md:grid-cols-[1fr_340px] gap-6">
+          <div className="h-96 bg-gray-100 rounded-lg animate-pulse" />
+          <div className="h-80 bg-gray-100 rounded-lg animate-pulse" />
+        </div>
+        <span className="sr-only">Loading checkout</span>
+      </div>
+    );
+  }
+
+  if (!cartItems.length) {
+    return (
+      <div className="pt-32 pb-20 min-h-[60vh] flex flex-col items-center justify-center px-4 text-center">
+        <h1 className="text-xl font-bold text-[#282c3f]">Your bag is empty</h1>
+        <p className="text-sm text-[#7e818c] mt-2 mb-6">Add a product before starting checkout.</p>
+        <Link to="/products" className="bg-[#ff3f6c] text-white font-bold px-8 py-3 rounded-sm">EXPLORE PRODUCTS</Link>
+      </div>
+    );
+  }
+
   return (
-    <div className="pt-24 pb-12 w-full max-w-[900px] mx-auto px-4">
-      
-      {/* Secure Checkout Header Banner */}
-      <div className="flex justify-between items-center mb-8 pb-4 border-b border-[#eaeaec]">
-        <h1 className="text-[20px] font-bold text-[#282c3f] flex items-center gap-2">
-          SECURE CHECKOUT
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#03a685]" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-          </svg>
-        </h1>
-        <div className="flex items-center gap-4 text-[12px] font-bold text-[#535766]">
-          <span className={step >= 1 ? 'text-[#03a685]' : ''}>ADDRESS</span>
-          <span className="text-[#eaeaec]">------</span>
-          <span className={step >= 2 ? 'text-[#03a685]' : ''}>PAYMENT</span>
+    <main className="pt-24 pb-14 w-full max-w-[980px] mx-auto px-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-7 pb-5 border-b border-[#eaeaec]">
+        <div>
+          <Link to="/cart" className="inline-flex items-center gap-1 text-xs font-bold text-[#535766] hover:text-[#ff3f6c] mb-2">
+            <ArrowLeft size={14} /> BACK TO BAG
+          </Link>
+          <h1 className="text-xl font-bold text-[#282c3f] flex items-center gap-2">
+            SECURE CHECKOUT <LockKeyhole size={20} className="text-[#03a685]" />
+          </h1>
+        </div>
+        <div className="flex items-center text-[11px] font-bold">
+          <span className="text-[#03a685]">1. ADDRESS</span>
+          <span className="w-10 sm:w-16 h-px bg-[#d4d5d9] mx-2" />
+          <span className={step === 2 ? 'text-[#03a685]' : 'text-[#7e818c]'}>2. PAYMENT</span>
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-6 items-start">
-        {/* Left Area (Forms) */}
-        <div className="w-full md:w-[65%] flex flex-col gap-4">
-          
-          {step === 1 && (
-            <div className="border border-[#eaeaec] bg-white rounded-sm">
-              <div className="p-4 bg-gray-50 border-b border-[#eaeaec] flex justify-between items-center">
-                <h2 className="text-[14px] font-bold text-[#282c3f] uppercase">Select Delivery Address</h2>
-                {savedAddresses.length > 0 && !showAddressForm && (
-                  <button onClick={() => setShowAddressForm(true)} className="text-[12px] font-bold text-[#ff3f6c] uppercase border border-[#ff3f6c] px-3 py-1 rounded-sm">Add New</button>
-                )}
-                {showAddressForm && savedAddresses.length > 0 && (
-                  <button onClick={() => setShowAddressForm(false)} className="text-[12px] font-bold text-[#ff3f6c] uppercase">Cancel</button>
+      <div className="grid md:grid-cols-[minmax(0,1fr)_340px] gap-6 items-start">
+        <section className="min-w-0">
+          {step === 1 ? (
+            <div className="border border-[#eaeaec] bg-white rounded-lg overflow-hidden shadow-sm">
+              <div className="p-4 bg-[#fafafa] border-b border-[#eaeaec] flex justify-between items-center">
+                <h2 className="text-sm font-bold text-[#282c3f] flex items-center gap-2">
+                  <MapPin size={17} /> DELIVERY ADDRESS
+                </h2>
+                {savedAddresses.length > 0 && (
+                  <button
+                    onClick={showAddressForm ? () => {
+                      const selected = savedAddresses.find((address) => address.id === selectedAddressId) || savedAddresses[0];
+                      handleSelectAddress(selected);
+                    } : handleAddNewAddress}
+                    className="text-xs font-bold text-[#ff3f6c]"
+                  >
+                    {showAddressForm ? 'CANCEL' : '+ ADD NEW'}
+                  </button>
                 )}
               </div>
-              
-              <div className="p-6 flex flex-col gap-4">
-                
-                {/* Saved Addresses List */}
-                {!showAddressForm && savedAddresses.length > 0 && (
-                  <div className="flex flex-col gap-4 mb-4">
+
+              <div className="p-4 sm:p-6">
+                {addressLoading ? (
+                  <div className="space-y-3">
+                    <div className="h-24 bg-gray-100 rounded animate-pulse" />
+                    <div className="h-24 bg-gray-100 rounded animate-pulse" />
+                  </div>
+                ) : !showAddressForm && savedAddresses.length > 0 ? (
+                  <div className="space-y-3">
                     {savedAddresses.map((address) => (
-                      <div 
-                        key={address.id} 
-                        onClick={() => handleSelectAddress(address)}
-                        className={`p-4 border rounded-sm cursor-pointer transition-all ${selectedAddressId === address.id ? 'border-[#03a685] bg-[#e6f6f2]' : 'border-[#eaeaec] hover:border-[#282c3f]'}`}
+                      <label
+                        key={address.id}
+                        className={`block p-4 border rounded-md cursor-pointer transition ${selectedAddressId === address.id ? 'border-[#03a685] bg-[#f2fbf8]' : 'border-[#eaeaec] hover:border-[#94969f]'}`}
                       >
-                        <div className="flex items-center gap-2 mb-2">
-                          <input type="radio" checked={selectedAddressId === address.id} onChange={() => handleSelectAddress(address)} className="accent-[#03a685]" />
-                          <span className="text-[14px] font-bold text-[#282c3f]">{address.name}</span>
-                          {address.is_default && <span className="bg-gray-200 text-[#535766] text-[10px] px-2 py-0.5 rounded-sm uppercase font-bold">Default</span>}
+                        <div className="flex gap-3">
+                          <input
+                            type="radio"
+                            name="delivery-address"
+                            checked={selectedAddressId === address.id}
+                            onChange={() => handleSelectAddress(address)}
+                            className="mt-1 accent-[#03a685]"
+                          />
+                          <div className="text-[13px] text-[#535766] leading-5">
+                            <p className="font-bold text-[#282c3f]">
+                              {address.name}
+                              {address.is_default ? <span className="ml-2 text-[10px] bg-gray-100 px-2 py-0.5 rounded">DEFAULT</span> : null}
+                            </p>
+                            <p>{address.address_line}</p>
+                            <p>{address.city}, {address.state} – {address.pincode}</p>
+                            <p className="mt-1">Mobile: <strong>{address.mobile}</strong></p>
+                          </div>
                         </div>
-                        <p className="text-[13px] text-[#535766] ml-6">{address.address_line}</p>
-                        <p className="text-[13px] text-[#535766] ml-6">{address.city}, {address.state} - {address.pincode}</p>
-                        <p className="text-[13px] text-[#535766] ml-6 mt-1">Mobile: <span className="font-bold">{address.mobile}</span></p>
-                      </div>
+                      </label>
                     ))}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-xs font-bold text-[#535766] mb-1">CONTACT & ADDRESS DETAILS</p>
+                    <input
+                      type="text"
+                      autoComplete="name"
+                      placeholder="Full Name *"
+                      value={addressData.name}
+                      onChange={(event) => setAddressData({ ...addressData, name: event.target.value })}
+                      className={inputClass}
+                    />
+                    <input
+                      type="text"
+                      autoComplete="street-address"
+                      placeholder="House no., building and street *"
+                      value={addressData.street}
+                      onChange={(event) => setAddressData({ ...addressData, street: event.target.value })}
+                      className={inputClass}
+                    />
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <input
+                        type="text"
+                        autoComplete="address-level2"
+                        placeholder="City *"
+                        value={addressData.city}
+                        onChange={(event) => setAddressData({ ...addressData, city: event.target.value })}
+                        className={inputClass}
+                      />
+                      <input
+                        type="text"
+                        autoComplete="address-level1"
+                        placeholder="State *"
+                        value={addressData.state}
+                        onChange={(event) => setAddressData({ ...addressData, state: event.target.value })}
+                        className={inputClass}
+                      />
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="postal-code"
+                        maxLength={6}
+                        placeholder="6-digit Pincode *"
+                        value={addressData.pincode}
+                        onChange={(event) => setAddressData({ ...addressData, pincode: event.target.value.replace(/\D/g, '') })}
+                        className={inputClass}
+                      />
+                      <input
+                        type="tel"
+                        inputMode="numeric"
+                        autoComplete="tel"
+                        maxLength={15}
+                        placeholder="Mobile Number *"
+                        value={addressData.mobile}
+                        onChange={(event) => setAddressData({ ...addressData, mobile: event.target.value.replace(/\D/g, '') })}
+                        className={inputClass}
+                      />
+                    </div>
                   </div>
                 )}
 
-                {/* New Address Form */}
-                {(showAddressForm || savedAddresses.length === 0) && (
-                  <div className="flex flex-col gap-3">
-                    <input 
-                      type="text" 
-                      placeholder="Full Name *" 
-                      value={addressData.name}
-                      onChange={(e) => setAddressData({...addressData, name: e.target.value})}
-                      className="w-full border border-[#d4d5d9] p-3 text-[13px] outline-none focus:border-[#282c3f] rounded-sm"
-                    />
-                    <input 
-                      type="text" 
-                      placeholder="Street Address / House No / Building *" 
-                      value={addressData.street}
-                      onChange={(e) => setAddressData({...addressData, street: e.target.value})}
-                      className="w-full border border-[#d4d5d9] p-3 text-[13px] outline-none focus:border-[#282c3f] rounded-sm"
-                    />
-                    <div className="flex gap-3">
-                      <input 
-                        type="text" 
-                        placeholder="City *" 
-                        value={addressData.city}
-                        onChange={(e) => setAddressData({...addressData, city: e.target.value})}
-                        className="w-1/2 border border-[#d4d5d9] p-3 text-[13px] outline-none focus:border-[#282c3f] rounded-sm"
-                      />
-                      <input 
-                        type="text" 
-                        placeholder="State *" 
-                        value={addressData.state}
-                        onChange={(e) => setAddressData({...addressData, state: e.target.value})}
-                        className="w-1/2 border border-[#d4d5d9] p-3 text-[13px] outline-none focus:border-[#282c3f] rounded-sm"
-                      />
-                    </div>
-                    <div className="flex gap-3">
-                      <input 
-                        type="text" 
-                        placeholder="Pincode *" 
-                        value={addressData.pincode}
-                        onChange={(e) => setAddressData({...addressData, pincode: e.target.value})}
-                        className="w-1/2 border border-[#d4d5d9] p-3 text-[13px] outline-none focus:border-[#282c3f] rounded-sm"
-                      />
-                      <input 
-                        type="text" 
-                        placeholder="Mobile Number *" 
-                        value={addressData.mobile}
-                        onChange={(e) => setAddressData({...addressData, mobile: e.target.value})}
-                        className="w-1/2 border border-[#d4d5d9] p-3 text-[13px] outline-none focus:border-[#282c3f] rounded-sm"
-                      />
-                    </div>
-                  </div>
-                )}
-                
-                <button 
+                <button
                   onClick={handleSaveAddressAndContinue}
-                  className="w-full bg-[#ff3f6c] text-white font-bold py-3 text-[14px] rounded-[2px] mt-4 hover:bg-[#e11b4c] transition-colors"
+                  disabled={addressLoading || addressSaving}
+                  className="w-full bg-[#ff3f6c] text-white font-bold py-3.5 text-sm rounded-md mt-5 hover:bg-[#e11b4c] disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
-                  SAVE & CONTINUE TO PAYMENT
+                  {addressSaving ? 'SAVING ADDRESS…' : showAddressForm ? 'SAVE & CONTINUE' : 'DELIVER TO THIS ADDRESS'}
                 </button>
               </div>
             </div>
-          )}
-
-          {step === 2 && (
-            <div className="border border-[#eaeaec] bg-white rounded-sm">
-              <div className="p-4 bg-gray-50 border-b border-[#eaeaec] flex justify-between items-center">
-                <h2 className="text-[14px] font-bold text-[#282c3f] uppercase">Choose Payment Mode</h2>
-                <span className="text-[11px] font-bold text-[#03a685] flex items-center gap-1">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                  100% SECURE PAYMENTS
-                </span>
-              </div>
-              <div className="flex flex-col md:flex-row">
-                {/* Payment Tabs */}
-                <div className="w-full md:w-[42%] bg-gray-50 border-r border-[#eaeaec] flex flex-col">
-                  <button 
-                    onClick={() => setPaymentMethod('razorpay_all')}
-                    className={`p-3.5 text-left text-[13px] font-bold transition-all flex items-center justify-between border-l-4 ${paymentMethod.startsWith('razorpay') ? 'text-[#282c3f] bg-white border-[#ff3f6c] shadow-sm' : 'text-[#535766] border-transparent hover:bg-gray-100'}`}
-                  >
-                    <span>Razorpay (UPI / Card / NetBanking)</span>
-                    <span className="text-[9px] bg-[#ff3f6c] text-white px-1.5 py-0.5 rounded font-black uppercase">Recommended</span>
-                  </button>
-
-                  <button 
-                    onClick={() => setPaymentMethod('razorpay_upi')}
-                    className={`p-3.5 text-left text-[13px] font-bold transition-all flex items-center justify-between border-l-4 ${paymentMethod === 'razorpay_upi' ? 'text-[#282c3f] bg-white border-[#ff3f6c] shadow-sm' : 'text-[#535766] border-transparent hover:bg-gray-100'}`}
-                  >
-                    <span>UPI (Google Pay / PhonePe / Paytm)</span>
-                    <span className="text-[9px] bg-emerald-600 text-white px-1.5 py-0.5 rounded font-black uppercase">Fastest</span>
-                  </button>
-
-                  <button 
-                    onClick={() => setPaymentMethod('razorpay_card')}
-                    className={`p-3.5 text-left text-[13px] font-bold transition-all flex items-center justify-between border-l-4 ${paymentMethod === 'razorpay_card' ? 'text-[#282c3f] bg-white border-[#ff3f6c] shadow-sm' : 'text-[#535766] border-transparent hover:bg-gray-100'}`}
-                  >
-                    <span>Credit / Debit Card</span>
-                    <span className="text-[9px] text-gray-500 font-semibold">Visa/Master</span>
-                  </button>
-
-                  <button 
-                    onClick={() => setPaymentMethod('razorpay_netbanking')}
-                    className={`p-3.5 text-left text-[13px] font-bold transition-all flex items-center justify-between border-l-4 ${paymentMethod === 'razorpay_netbanking' ? 'text-[#282c3f] bg-white border-[#ff3f6c] shadow-sm' : 'text-[#535766] border-transparent hover:bg-gray-100'}`}
-                  >
-                    <span>Net Banking</span>
-                    <span className="text-[9px] text-gray-500 font-semibold">50+ Banks</span>
-                  </button>
-
-                  <button 
-                    onClick={() => setPaymentMethod('cod')}
-                    className={`p-3.5 text-left text-[13px] font-bold transition-all flex items-center justify-between border-l-4 ${paymentMethod === 'cod' ? 'text-[#282c3f] bg-white border-[#ff3f6c] shadow-sm' : 'text-[#535766] border-transparent hover:bg-gray-100'}`}
-                  >
-                    <span className="text-gray-400">Cash On Delivery (COD)</span>
-                    <span className="text-[9px] bg-amber-500 text-white px-1.5 py-0.5 rounded font-black uppercase">Coming Soon</span>
-                  </button>
+          ) : (
+            <div className="space-y-4">
+              <div className="border border-[#03a685] bg-[#f2fbf8] rounded-lg p-4 flex items-start justify-between gap-4">
+                <div className="flex gap-3">
+                  <span className="w-7 h-7 rounded-full bg-[#03a685] text-white flex items-center justify-center shrink-0">
+                    <Check size={16} />
+                  </span>
+                  <div>
+                    <p className="text-sm font-bold text-[#282c3f]">Delivering to {addressData.name}</p>
+                    <p className="text-xs text-[#535766] mt-1">{addressData.street}, {addressData.city} – {addressData.pincode}</p>
+                  </div>
                 </div>
+                <button onClick={() => setStep(1)} className="text-xs font-bold text-[#ff3f6c]">CHANGE</button>
+              </div>
 
-                {/* Payment Content */}
-                <div className="w-full md:w-[58%] p-6">
-                  {paymentMethod === 'razorpay_upi' && (
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <h3 className="text-[14px] font-bold text-[#282c3f] uppercase">Pay via UPI</h3>
-                        <span className="text-[10px] font-bold text-[#03a685] bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">1-Click Launch</span>
-                      </div>
-                      <p className="text-[12px] text-[#535766] mb-5">Click any app below to pay instantly via Razorpay Secure Gateway</p>
-                      
-                      {/* Popular UPI Apps Grid with Real Logos */}
-                      <div className="grid grid-cols-2 gap-3.5 mb-6">
-                        {/* Google Pay */}
-                        <div 
-                          onClick={handlePlaceOrder}
-                          className="border border-[#eaeaec] p-3.5 rounded-lg flex items-center gap-3.5 bg-white hover:border-[#ff3f6c] hover:shadow-md cursor-pointer transition-all group"
-                        >
-                          <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center p-1 border border-gray-100 group-hover:scale-105 transition-transform">
-                            <img 
-                              src="https://upload.wikimedia.org/wikipedia/commons/f/f2/Google_Pay_%28GPay%29_Logo.svg" 
-                              alt="Google Pay" 
-                              className="w-full h-full object-contain"
-                              onError={(e) => { e.target.src = 'https://cdn.iconscout.com/icon/free/png-256/free-google-pay-logo-icon-svg-download-png-174828.png'; }}
-                            />
-                          </div>
-                          <div>
-                            <p className="text-[13px] font-bold text-[#282c3f] group-hover:text-[#ff3f6c] transition-colors">Google Pay</p>
-                            <p className="text-[10px] text-emerald-600 font-bold">Pay via GPay ⚡</p>
-                          </div>
-                        </div>
-
-                        {/* PhonePe */}
-                        <div 
-                          onClick={handlePlaceOrder}
-                          className="border border-[#eaeaec] p-3.5 rounded-lg flex items-center gap-3.5 bg-white hover:border-[#ff3f6c] hover:shadow-md cursor-pointer transition-all group"
-                        >
-                          <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center p-1 border border-purple-100 group-hover:scale-105 transition-transform">
-                            <img 
-                              src="https://uxwing.com/wp-content/themes/uxwing/download/brands-and-social-media/phonepe-icon.png" 
-                              alt="PhonePe" 
-                              className="w-full h-full object-contain"
-                              onError={(e) => { e.target.src = 'https://cdn.iconscout.com/icon/free/png-256/free-phonepe-logo-icon-png-svg-download-3312015.png'; }}
-                            />
-                          </div>
-                          <div>
-                            <p className="text-[13px] font-bold text-[#282c3f] group-hover:text-[#ff3f6c] transition-colors">PhonePe</p>
-                            <p className="text-[10px] text-purple-600 font-bold">Fastest UPI ⚡</p>
-                          </div>
-                        </div>
-
-                        {/* Paytm */}
-                        <div 
-                          onClick={handlePlaceOrder}
-                          className="border border-[#eaeaec] p-3.5 rounded-lg flex items-center gap-3.5 bg-white hover:border-[#ff3f6c] hover:shadow-md cursor-pointer transition-all group"
-                        >
-                          <div className="w-10 h-10 rounded-lg bg-sky-50 flex items-center justify-center p-1 border border-sky-100 group-hover:scale-105 transition-transform">
-                            <img 
-                              src="https://cdn.iconscout.com/icon/free/png-256/free-paytm-logo-icon-png-svg-download-3521631.png" 
-                              alt="Paytm" 
-                              className="w-full h-full object-contain"
-                            />
-                          </div>
-                          <div>
-                            <p className="text-[13px] font-bold text-[#282c3f] group-hover:text-[#ff3f6c] transition-colors">Paytm UPI</p>
-                            <p className="text-[10px] text-sky-600 font-bold">UPI Lite Active ⚡</p>
-                          </div>
-                        </div>
-
-                        {/* BHIM / Any UPI */}
-                        <div 
-                          onClick={handlePlaceOrder}
-                          className="border border-[#eaeaec] p-3.5 rounded-lg flex items-center gap-3.5 bg-white hover:border-[#ff3f6c] hover:shadow-md cursor-pointer transition-all group"
-                        >
-                          <div className="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center p-1 border border-orange-100 group-hover:scale-105 transition-transform">
-                            <img 
-                              src="https://upload.wikimedia.org/wikipedia/commons/e/e1/BHIM-Logo.svg" 
-                              alt="BHIM UPI" 
-                              className="w-full h-full object-contain"
-                            />
-                          </div>
-                          <div>
-                            <p className="text-[13px] font-bold text-[#282c3f] group-hover:text-[#ff3f6c] transition-colors">BHIM / Any UPI</p>
-                            <p className="text-[10px] text-orange-600 font-bold">All UPI IDs ⚡</p>
-                          </div>
+              <div className="border border-[#eaeaec] bg-white rounded-lg overflow-hidden shadow-sm">
+                <div className="p-4 bg-[#fafafa] border-b border-[#eaeaec]">
+                  <h2 className="text-sm font-bold text-[#282c3f] flex items-center gap-2">
+                    <CreditCard size={17} /> PAYMENT
+                  </h2>
+                </div>
+                <div className="p-5 sm:p-6">
+                  <div className="border-2 border-[#ff3f6c] rounded-lg p-4 bg-[#fff8fa]">
+                    <div className="flex items-start gap-3">
+                      <input type="radio" checked readOnly className="mt-1 accent-[#ff3f6c]" />
+                      <div>
+                        <p className="text-sm font-bold text-[#282c3f]">Pay securely with Razorpay</p>
+                        <p className="text-xs text-[#535766] mt-1 leading-5">UPI, credit/debit cards, wallets and net banking are available inside the secure payment window.</p>
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {['UPI', 'Cards', 'Wallets', 'Net Banking'].map((method) => (
+                            <span key={method} className="bg-white border border-[#eaeaec] rounded px-2 py-1 text-[10px] font-bold text-[#535766]">{method}</span>
+                          ))}
                         </div>
                       </div>
-
-                      <button 
-                        onClick={handlePlaceOrder}
-                        disabled={loading}
-                        className={`w-full text-white font-black py-3.5 text-[15px] rounded-[4px] shadow-md transition-all flex items-center justify-center gap-2 ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#ff3f6c] hover:bg-[#e11b4c] hover:shadow-lg'}`}
-                      >
-                        ⚡ {loading ? 'OPENING RAZORPAY...' : `PAY VIA RAZORPAY UPI ₹${finalTotal}`}
-                      </button>
                     </div>
-                  )}
+                  </div>
 
-                  {paymentMethod === 'razorpay_card' && (
-                    <div>
-                      <h3 className="text-[14px] font-bold text-[#282c3f] uppercase mb-1">Credit / Debit Card</h3>
-                      <p className="text-[12px] text-[#535766] mb-5">Click below to enter card details securely in Razorpay Gateway</p>
-
-                      {/* Real Card Brand Logos */}
-                      <div className="grid grid-cols-3 gap-3 mb-6">
-                        <div onClick={handlePlaceOrder} className="border border-[#eaeaec] p-3 rounded-lg flex flex-col items-center justify-center gap-2 bg-white hover:border-[#ff3f6c] cursor-pointer transition-all h-20">
-                          <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" alt="Visa" className="h-6 object-contain" />
-                          <span className="text-[10px] font-bold text-gray-500">VISA</span>
-                        </div>
-                        <div onClick={handlePlaceOrder} className="border border-[#eaeaec] p-3 rounded-lg flex flex-col items-center justify-center gap-2 bg-white hover:border-[#ff3f6c] cursor-pointer transition-all h-20">
-                          <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" className="h-7 object-contain" />
-                          <span className="text-[10px] font-bold text-gray-500">MASTERCARD</span>
-                        </div>
-                        <div onClick={handlePlaceOrder} className="border border-[#eaeaec] p-3 rounded-lg flex flex-col items-center justify-center gap-2 bg-white hover:border-[#ff3f6c] cursor-pointer transition-all h-20">
-                          <img src="https://upload.wikimedia.org/wikipedia/commons/d/d1/RuPay_logo-official.svg" alt="RuPay" className="h-6 object-contain" />
-                          <span className="text-[10px] font-bold text-gray-500">RUPAY</span>
-                        </div>
-                      </div>
-
-                      <button 
-                        onClick={handlePlaceOrder}
-                        disabled={loading}
-                        className={`w-full text-white font-black py-3.5 text-[15px] rounded-[4px] shadow-md transition-all flex items-center justify-center gap-2 ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#ff3f6c] hover:bg-[#e11b4c] hover:shadow-lg'}`}
-                      >
-                        💳 {loading ? 'OPENING RAZORPAY...' : `PAY VIA CARD ₹${finalTotal}`}
-                      </button>
-                    </div>
-                  )}
-
-                  {paymentMethod === 'razorpay_netbanking' && (
-                    <div>
-                      <h3 className="text-[14px] font-bold text-[#282c3f] uppercase mb-1">Net Banking</h3>
-                      <p className="text-[12px] text-[#535766] mb-5">Click your bank logo to open NetBanking in Razorpay</p>
-
-                      {/* Real Bank Logos Grid */}
-                      <div className="grid grid-cols-3 gap-3 mb-6">
-                        <div onClick={handlePlaceOrder} className="border border-[#eaeaec] p-3 rounded-lg flex flex-col items-center justify-center gap-1.5 bg-white hover:border-[#ff3f6c] cursor-pointer transition-all h-20">
-                          <img src="https://upload.wikimedia.org/wikipedia/commons/2/28/HDFC_Bank_Logo.svg" alt="HDFC Bank" className="h-5 object-contain" />
-                          <span className="text-[11px] font-bold text-[#282c3f]">HDFC Bank</span>
-                        </div>
-                        <div onClick={handlePlaceOrder} className="border border-[#eaeaec] p-3 rounded-lg flex flex-col items-center justify-center gap-1.5 bg-white hover:border-[#ff3f6c] cursor-pointer transition-all h-20">
-                          <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/ICICI_Bank_Logo.svg" alt="ICICI Bank" className="h-5 object-contain" />
-                          <span className="text-[11px] font-bold text-[#282c3f]">ICICI Bank</span>
-                        </div>
-                        <div onClick={handlePlaceOrder} className="border border-[#eaeaec] p-3 rounded-lg flex flex-col items-center justify-center gap-1.5 bg-white hover:border-[#ff3f6c] cursor-pointer transition-all h-20">
-                          <img src="https://upload.wikimedia.org/wikipedia/commons/c/cc/SBI-logo.svg" alt="SBI" className="h-6 object-contain" />
-                          <span className="text-[11px] font-bold text-[#282c3f]">SBI</span>
-                        </div>
-                        <div onClick={handlePlaceOrder} className="border border-[#eaeaec] p-3 rounded-lg flex flex-col items-center justify-center gap-1.5 bg-white hover:border-[#ff3f6c] cursor-pointer transition-all h-20">
-                          <img src="https://upload.wikimedia.org/wikipedia/commons/1/1a/Axis_Bank_logo.svg" alt="Axis Bank" className="h-5 object-contain" />
-                          <span className="text-[11px] font-bold text-[#282c3f]">Axis Bank</span>
-                        </div>
-                        <div onClick={handlePlaceOrder} className="border border-[#eaeaec] p-3 rounded-lg flex flex-col items-center justify-center gap-1.5 bg-white hover:border-[#ff3f6c] cursor-pointer transition-all h-20">
-                          <img src="https://upload.wikimedia.org/wikipedia/commons/0/09/Kotak_Mahindra_Bank_logo.svg" alt="Kotak" className="h-5 object-contain" />
-                          <span className="text-[11px] font-bold text-[#282c3f]">Kotak Bank</span>
-                        </div>
-                        <div onClick={handlePlaceOrder} className="border border-[#eaeaec] p-3 rounded-lg flex flex-col items-center justify-center gap-1.5 bg-white hover:border-[#ff3f6c] cursor-pointer transition-all h-20">
-                          <span className="text-[14px] font-black text-rose-700">PNB</span>
-                          <span className="text-[11px] font-bold text-[#282c3f]">Punjab Nat.</span>
-                        </div>
-                      </div>
-
-                      <button 
-                        onClick={handlePlaceOrder}
-                        disabled={loading}
-                        className={`w-full text-white font-black py-3.5 text-[15px] rounded-[4px] shadow-md transition-all flex items-center justify-center gap-2 ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#ff3f6c] hover:bg-[#e11b4c] hover:shadow-lg'}`}
-                      >
-                        🏦 {loading ? 'OPENING RAZORPAY...' : `PAY VIA NET BANKING ₹${finalTotal}`}
-                      </button>
-                    </div>
-                  )}
-
-                  {(paymentMethod === 'razorpay_all' || (!['razorpay_upi', 'razorpay_card', 'razorpay_netbanking', 'cod'].includes(paymentMethod))) && (
-                    <div>
-                      {/* Razorpay Gateway Branding Card */}
-                      <div className="border border-blue-100 bg-blue-50/50 rounded-lg p-5 mb-6">
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="text-[13px] font-black text-[#0c2340] tracking-wider flex items-center gap-1.5">
-                            ⚡ RAZORPAY SECURE GATEWAY
-                          </span>
-                          <span className="text-[11px] font-bold text-[#03a685] bg-emerald-100 px-2 py-0.5 rounded-full">Official Partner</span>
-                        </div>
-                        <p className="text-[12px] text-gray-600 mb-4 leading-relaxed">
-                          Pay instantly using your preferred method: <strong>Google Pay, PhonePe, Paytm, BHIM UPI, Credit/Debit Cards, or NetBanking</strong>.
-                        </p>
-                        {/* Gateway Payment Badges */}
-                        <div className="flex flex-wrap gap-2 pt-2 border-t border-blue-100">
-                          <span className="bg-white border border-gray-200 text-[10px] font-bold px-2.5 py-1 rounded text-gray-700">Google Pay / PhonePe / Paytm</span>
-                          <span className="bg-white border border-gray-200 text-[10px] font-bold px-2.5 py-1 rounded text-gray-700">Visa / Mastercard / RuPay</span>
-                          <span className="bg-white border border-gray-200 text-[10px] font-bold px-2.5 py-1 rounded text-gray-700">NetBanking (50+ Banks)</span>
-                        </div>
-                      </div>
-
-                      <button 
-                        onClick={handlePlaceOrder}
-                        disabled={loading}
-                        className={`w-full text-white font-black py-3.5 text-[15px] rounded-[4px] shadow-md transition-all flex items-center justify-center gap-2 ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#ff3f6c] hover:bg-[#e11b4c] hover:shadow-lg'}`}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
-                        {loading ? 'OPENING RAZORPAY GATEWAY...' : `PAY VIA RAZORPAY ₹${finalTotal}`}
-                      </button>
-                      
-                      <p className="text-center text-[11px] text-gray-400 mt-3 font-semibold">
-                        🔒 Safe & 256-Bit Encrypted Transaction powered by Razorpay
-                      </p>
-                    </div>
-                  )}
-
-                  {paymentMethod === 'cod' && (
-                    <div>
-                      <div className="border border-amber-200 bg-amber-50 rounded-lg p-5 mb-6">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-[10px] font-black uppercase bg-amber-500 text-white px-2 py-0.5 rounded">COMING SOON</span>
-                          <h4 className="text-[13px] font-black text-[#282c3f]">Cash On Delivery Unavailable</h4>
-                        </div>
-                        <p className="text-[12px] text-gray-600 leading-relaxed">
-                          Cash on Delivery is currently unavailable in your delivery area. Please pay online via <strong>Razorpay Secure Gateway</strong> for 100% safe & instant order confirmation!
-                        </p>
-                      </div>
-
-                      <button 
-                        onClick={() => setPaymentMethod('razorpay_all')}
-                        className="w-full text-white font-black py-3.5 text-[14px] rounded-[4px] shadow-md bg-[#ff3f6c] hover:bg-[#e11b4c] transition-all flex items-center justify-center gap-2"
-                      >
-                        SWITCH TO ONLINE PAYMENT (RAZORPAY)
-                      </button>
-                    </div>
-                  )}
+                  <button
+                    onClick={handlePlaceOrder}
+                    disabled={paymentLoading || pricingLoading || !serverPricing}
+                    className="w-full bg-[#ff3f6c] text-white font-bold py-3.5 text-sm rounded-md mt-5 hover:bg-[#e11b4c] disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    <LockKeyhole size={17} />
+                    {paymentLoading ? 'PAYMENT WINDOW OPEN…' : pricingLoading ? 'VERIFYING PRICE…' : `PAY SECURELY ₹${finalTotal}`}
+                  </button>
+                  <p className="text-center text-[11px] text-[#7e818c] mt-3">You will review the amount again before completing payment.</p>
                 </div>
               </div>
             </div>
           )}
+        </section>
 
-        </div>
-
-        {/* Right Area (Order Summary) */}
-        <div className="w-full md:w-[35%] flex flex-col gap-4">
-          {/* Order Items Preview */}
-          <div className="border border-[#eaeaec] bg-white rounded-sm p-4">
-            <h4 className="text-[12px] font-bold text-[#535766] uppercase mb-3">Order Items ({cartItems.length})</h4>
-            <div className="flex flex-col gap-3 max-h-60 overflow-y-auto pr-1">
+        <aside className="space-y-4 md:sticky md:top-24">
+          <div className="border border-[#eaeaec] bg-white rounded-lg p-4">
+            <h3 className="text-xs font-bold text-[#535766] uppercase mb-3">Order Items ({totalItems})</h3>
+            <div className="space-y-3 max-h-56 overflow-y-auto pr-1">
               {cartItems.map((item) => (
-                <div key={item.cart_item_id || item.id} className="flex gap-3 items-center border-b border-gray-100 pb-2.5 last:border-b-0">
-                  <div className="w-12 h-14 bg-gray-100 rounded overflow-hidden shrink-0">
-                    <img 
-                      src={item.image_url || item.image || 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=500&q=80'} 
-                      alt={item.title} 
-                      onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=500&q=80'; }}
-                      className="w-full h-full object-cover"
+                <div key={item.cart_item_id || `${item.id}-${item.size}`} className="flex gap-3 items-center border-b border-gray-100 pb-3 last:border-0 last:pb-0">
+                  <div className="w-12 h-14 bg-[#f8f8f8] rounded overflow-hidden shrink-0">
+                    <img
+                      src={item.image_url || item.image || PRODUCT_FALLBACK}
+                      alt={item.title}
+                      onError={(event) => { event.currentTarget.src = PRODUCT_FALLBACK; }}
+                      className="w-full h-full object-contain"
                     />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[12px] font-bold text-[#282c3f] truncate">{item.brand || item.title}</p>
+                    <p className="text-xs font-bold text-[#282c3f] truncate">{item.brand || item.title}</p>
                     <p className="text-[11px] text-gray-500 truncate">{item.title}</p>
-                    <div className="flex items-center gap-2 text-[11px] text-gray-500 mt-0.5">
-                      <span>Qty: {item.quantity}</span>
-                      <span>• Size: {item.size || 'M'}</span>
-                    </div>
+                    <p className="text-[11px] text-gray-500 mt-0.5">Qty {item.quantity} • {item.size || 'One Size'}</p>
                   </div>
-                  <span className="text-[12px] font-bold text-[#282c3f]">₹{item.price * item.quantity}</span>
+                  <span className="text-xs font-bold text-[#282c3f]">₹{Number(item.price) * Number(item.quantity)}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="border border-[#eaeaec] bg-white rounded-sm p-4">
-            <h4 className="text-[12px] font-bold text-[#535766] uppercase mb-4">Price Details ({cartItems.length} Items)</h4>
-            
-            <div className="flex flex-col gap-3 text-[14px] text-[#282c3f] mb-4 border-b border-[#eaeaec] pb-4">
-              <div className="flex justify-between">
-                <span>Total</span>
-                <span>Rs. {cartTotal}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Convenience Fee</span>
-                <span className="text-[#282c3f]">Rs. {convenienceFee}</span>
-              </div>
-              {discountFromCart > 0 && (
-                <div className="flex justify-between">
-                  <span>Extra Coupon Discount</span>
-                  <span className="text-[#03a685]">- Rs. {discountFromCart}</span>
-                </div>
+          <div className="border border-[#eaeaec] bg-white rounded-lg p-4" aria-live="polite">
+            <h3 className="text-xs font-bold text-[#535766] uppercase mb-4">Price Details</h3>
+            <div className="space-y-3 text-sm text-[#282c3f] border-b border-[#eaeaec] pb-4">
+              <div className="flex justify-between"><span>Bag subtotal</span><span>₹{serverPricing?.subtotal ?? cartTotal}</span></div>
+              {discount > 0 && (
+                <div className="flex justify-between text-[#03a685]"><span>Coupon discount</span><span>− ₹{discount}</span></div>
               )}
+              <div className="flex justify-between">
+                <span>Delivery fee</span>
+                <span className={deliveryFee === 0 ? 'text-[#03a685]' : ''}>{deliveryFee === 0 ? 'FREE' : `₹${deliveryFee}`}</span>
+              </div>
             </div>
-
-            <div className="flex justify-between items-center text-[15px] font-bold text-[#282c3f]">
+            <div className="flex justify-between items-center text-[15px] font-bold text-[#282c3f] pt-4">
               <span>Total Amount</span>
-              <span>Rs. {finalTotal}</span>
+              <span>{pricingLoading ? 'Updating…' : `₹${finalTotal}`}</span>
             </div>
+            {couponCode && <p className="text-[11px] text-[#03a685] font-bold mt-3">{couponCode} applied</p>}
           </div>
 
-          <div className="flex items-center gap-2 text-[12px] text-[#7e818c]">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-            </svg>
-            Safe and Secure Payments. Easy returns. 100% Authentic products.
+          <div className="flex items-start gap-2 text-xs text-[#7e818c] px-1">
+            <ShieldCheck size={18} className="text-[#03a685] shrink-0" />
+            <span>100% authentic products, secure payment and easy returns.</span>
           </div>
-        </div>
+        </aside>
       </div>
-    </div>
+    </main>
   );
 };
 

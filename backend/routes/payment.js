@@ -1,126 +1,192 @@
 const express = require('express');
-const router = express.Router();
-const Razorpay = require('razorpay');
 const crypto = require('crypto');
+const Razorpay = require('razorpay');
 const db = require('../config/db');
+const { protect } = require('../middleware/authMiddleware');
+const {
+  CheckoutError,
+  calculateOrder,
+  createCartDigest,
+  saveOrderAndReduceStock,
+  validateShippingAddress,
+} = require('../services/orderService');
 
-// Initialize Razorpay with fallbacks
+const router = express.Router();
+router.use(protect);
+
 const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_QvFiXZe6iRfjAH',
-  key_secret: process.env.RAZORPAY_KEY_SECRET || 'uPdWXYO71FQeOgpfNApnPh6T',
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
-// @route   POST /api/payment/create-order
-// @desc    Create a Razorpay order
-router.post('/create-order', async (req, res) => {
-  const { amount } = req.body; // Amount from frontend in INR (rupees)
+const safeEqual = (left, right) => {
+  const leftBuffer = Buffer.from(String(left || ''), 'utf8');
+  const rightBuffer = Buffer.from(String(right || ''), 'utf8');
+  return leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer);
+};
 
-  if (!amount) {
-    return res.status(400).json({ message: 'Amount is required' });
-  }
-
+router.post('/quote', async (req, res) => {
   try {
-    const options = {
-      amount: amount * 100, // Razorpay expects amount in paise (1 INR = 100 paise)
-      currency: 'INR',
-      receipt: `receipt_${Date.now()}`,
-    };
-
-    const order = await razorpay.orders.create(options);
-    res.json(order);
+    const order = await calculateOrder(db, req.body.items, req.body.couponCode);
+    return res.json({
+      subtotal: order.subtotal,
+      discount: order.discount,
+      shippingFee: order.shippingFee,
+      total: order.total,
+      couponCode: order.couponCode,
+    });
   } catch (error) {
-    console.error('Razorpay Error:', error);
-    res.status(500).json({ message: 'Failed to create Razorpay order' });
+    if (error instanceof CheckoutError) {
+      return res.status(error.status).json({ message: error.message });
+    }
+    console.error('Checkout quote failed:', error.message);
+    return res.status(500).json({ message: 'Could not calculate checkout total' });
   }
 });
 
-// @route   POST /api/payment/verify
-// @desc    Verify Razorpay payment signature and save the order
+router.post('/create-order', async (req, res) => {
+  try {
+    const order = await calculateOrder(db, req.body.items, req.body.couponCode);
+    const cartHash = createCartDigest({
+      userId: req.user.id,
+      items: order.items,
+      couponCode: order.couponCode,
+      totalPaise: order.totalPaise,
+    });
+
+    const providerOrder = await razorpay.orders.create({
+      amount: order.totalPaise,
+      currency: 'INR',
+      receipt: `user_${req.user.id}_${Date.now()}`,
+      notes: {
+        user_id: String(req.user.id),
+        cart_hash: cartHash,
+        coupon_code: order.couponCode || '',
+      },
+    });
+
+    res.json({
+      id: providerOrder.id,
+      amount: providerOrder.amount,
+      currency: providerOrder.currency,
+      keyId: process.env.RAZORPAY_KEY_ID,
+      pricing: {
+        subtotal: order.subtotal,
+        discount: order.discount,
+        shippingFee: order.shippingFee,
+        total: order.total,
+        couponCode: order.couponCode,
+      },
+    });
+  } catch (error) {
+    if (error instanceof CheckoutError) {
+      return res.status(error.status).json({ message: error.message });
+    }
+    console.error('Razorpay order creation failed:', error.message);
+    return res.status(502).json({ message: 'Payment service is currently unavailable' });
+  }
+});
+
 router.post('/verify', async (req, res) => {
   const {
-    razorpay_order_id,
-    razorpay_payment_id,
-    razorpay_signature,
-    userId,
-    totalAmount,
+    razorpay_order_id: razorpayOrderId,
+    razorpay_payment_id: razorpayPaymentId,
+    razorpay_signature: razorpaySignature,
     shippingAddress,
-    items
+    items,
+    couponCode,
   } = req.body;
 
-  // 1. Verify Signature
-  const body = razorpay_order_id + "|" + razorpay_payment_id;
+  if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+    return res.status(400).json({ message: 'Incomplete payment verification data' });
+  }
+
   const expectedSignature = crypto
     .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-    .update(body.toString())
+    .update(`${razorpayOrderId}|${razorpayPaymentId}`)
     .digest('hex');
 
-  const isAuthentic = expectedSignature === razorpay_signature;
-
-  if (!isAuthentic) {
+  if (!safeEqual(expectedSignature, razorpaySignature)) {
     return res.status(400).json({ message: 'Invalid payment signature' });
   }
 
-  // 2. If authentic, save the order to our DB
   const connection = await db.getConnection();
   try {
-    await connection.beginTransaction();
-
-    const [orderResult] = await connection.query(
-      'INSERT INTO orders (user_id, total_amount, shipping_address, status) VALUES (?, ?, ?, ?)',
-      [userId || 2, totalAmount, shippingAddress || 'Default Address', 'Processing'] 
-    );
-    const orderId = orderResult.insertId;
-
-    for (const item of items) {
-      await connection.query(
-        'INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)',
-        [orderId, item.id, item.quantity, item.price]
-      );
+    const providerOrder = await razorpay.orders.fetch(razorpayOrderId);
+    if (
+      Number(providerOrder.amount_paid) !== Number(providerOrder.amount)
+      || providerOrder.status !== 'paid'
+      || providerOrder.currency !== 'INR'
+    ) {
+      throw new CheckoutError('Payment is not fully captured', 409);
+    }
+    if (String(providerOrder.notes?.user_id) !== String(req.user.id)) {
+      throw new CheckoutError('Payment does not belong to this user', 403);
     }
 
-    await connection.commit();
-    res.status(200).json({ 
-      message: 'Payment verified and order saved successfully', 
-      orderId 
+    await connection.beginTransaction();
+    const order = await calculateOrder(connection, items, couponCode, { lockProducts: true });
+    if (order.totalPaise !== Number(providerOrder.amount)) {
+      throw new CheckoutError('Cart total does not match the paid amount', 409);
+    }
+
+    const cartHash = createCartDigest({
+      userId: req.user.id,
+      items: order.items,
+      couponCode: order.couponCode,
+      totalPaise: order.totalPaise,
+    });
+    if (!safeEqual(cartHash, providerOrder.notes?.cart_hash)) {
+      throw new CheckoutError('Cart contents changed after payment was initiated', 409);
+    }
+
+    const address = validateShippingAddress(shippingAddress);
+    const orderId = await saveOrderAndReduceStock(connection, {
+      userId: req.user.id,
+      order,
+      shippingAddress: address,
+      status: 'Processing',
+      paymentId: razorpayPaymentId,
     });
 
+    await connection.commit();
+    return res.status(201).json({ message: 'Payment verified and order placed', orderId });
   } catch (error) {
     await connection.rollback();
-    console.error('DB Save Error:', error);
-    res.status(500).json({ message: 'Payment verified but failed to save order to DB' });
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ message: 'This payment has already been processed' });
+    }
+    if (error instanceof CheckoutError) {
+      return res.status(error.status).json({ message: error.message });
+    }
+    console.error('Payment verification failed:', error.message);
+    return res.status(500).json({ message: 'Payment was received but order confirmation failed. Contact support.' });
   } finally {
     connection.release();
   }
 });
 
-// @route   POST /api/payment/cod
-// @desc    Place a Cash on Delivery order
 router.post('/cod', async (req, res) => {
-  const { userId, totalAmount, shippingAddress, items } = req.body;
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
-    const [orderResult] = await connection.query(
-      'INSERT INTO orders (user_id, total_amount, shipping_address, status) VALUES (?, ?, ?, ?)',
-      [userId || 2, totalAmount, shippingAddress || 'Default Address', 'COD / Processing']
-    );
-    const orderId = orderResult.insertId;
-
-    if (Array.isArray(items)) {
-      for (const item of items) {
-        await connection.query(
-          'INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)',
-          [orderId, item.id, item.quantity, item.price]
-        );
-      }
-    }
-
+    const order = await calculateOrder(connection, req.body.items, req.body.couponCode, { lockProducts: true });
+    const address = validateShippingAddress(req.body.shippingAddress);
+    const orderId = await saveOrderAndReduceStock(connection, {
+      userId: req.user.id,
+      order,
+      shippingAddress: address,
+      status: 'Pending',
+    });
     await connection.commit();
-    res.status(200).json({ message: 'COD Order placed successfully! 📦', orderId });
+    return res.status(201).json({ message: 'COD order placed successfully', orderId });
   } catch (error) {
     await connection.rollback();
-    console.error('COD Order Error:', error);
-    res.status(500).json({ message: 'Failed to place COD order' });
+    if (error instanceof CheckoutError) {
+      return res.status(error.status).json({ message: error.message });
+    }
+    console.error('COD order failed:', error.message);
+    return res.status(500).json({ message: 'Failed to place COD order' });
   } finally {
     connection.release();
   }

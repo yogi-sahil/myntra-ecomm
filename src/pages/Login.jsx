@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 import { API_BASE_URL } from '../config';
-import { useToast } from '../context/ToastContext';
 
 const Login = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -18,7 +17,6 @@ const Login = () => {
 
   const navigate = useNavigate();
   const { login } = useAuth();
-  const { showToast } = useToast();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -43,7 +41,7 @@ const Login = () => {
         throw new Error(data.message || 'Authentication failed');
       }
 
-      login(data.user, data.token);
+      login(data.user);
       navigate('/');
     } catch (err) {
       setError(err.message);
@@ -107,6 +105,8 @@ const Login = () => {
                 type={showPassword ? "text" : "password"} 
                 placeholder="Password" 
                 required
+                minLength={8}
+                maxLength={128}
                 className="w-full border border-[#d4d5d9] px-3 py-2 pr-10 outline-none text-[14px] text-[#282c3f] focus:border-[#282c3f] transition-colors"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

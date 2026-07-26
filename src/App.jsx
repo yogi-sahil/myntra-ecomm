@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Outlet, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
@@ -8,25 +8,23 @@ import { ToastProvider } from './context/ToastContext';
 // User Components
 import Header from './components/Header';
 import Footer from './components/Footer';
-import Home from './pages/Home';
-import ProductList from './pages/ProductList';
-import ProductDetail from './pages/ProductDetail';
-import Cart from './pages/Cart';
-import Wishlist from './pages/Wishlist';
-import Login from './pages/Login';
-import Profile from './pages/Profile';
-import Checkout from './pages/Checkout';
-
-// Admin Components
-import AdminLayout from './admin/AdminLayout';
-import AdminDashboard from './admin/AdminDashboard';
-import AdminProducts from './admin/AdminProducts';
-import AdminOrders from './admin/AdminOrders';
-import AdminUsers from './admin/AdminUsers';
-import AdminSettings from './admin/AdminSettings';
-import AdminCategories from './admin/AdminCategories';
-import AdminDiscount from './admin/AdminDiscount';
-import AdminLogin from './admin/AdminLogin';
+const Home = lazy(() => import('./pages/Home'));
+const ProductList = lazy(() => import('./pages/ProductList'));
+const ProductDetail = lazy(() => import('./pages/ProductDetail'));
+const Cart = lazy(() => import('./pages/Cart'));
+const Wishlist = lazy(() => import('./pages/Wishlist'));
+const Login = lazy(() => import('./pages/Login'));
+const Profile = lazy(() => import('./pages/Profile'));
+const Checkout = lazy(() => import('./pages/Checkout'));
+const AdminLayout = lazy(() => import('./admin/AdminLayout'));
+const AdminDashboard = lazy(() => import('./admin/AdminDashboard'));
+const AdminProducts = lazy(() => import('./admin/AdminProducts'));
+const AdminOrders = lazy(() => import('./admin/AdminOrders'));
+const AdminUsers = lazy(() => import('./admin/AdminUsers'));
+const AdminSettings = lazy(() => import('./admin/AdminSettings'));
+const AdminCategories = lazy(() => import('./admin/AdminCategories'));
+const AdminDiscount = lazy(() => import('./admin/AdminDiscount'));
+const AdminLogin = lazy(() => import('./admin/AdminLogin'));
 
 const ProtectedAdminRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -35,6 +33,13 @@ const ProtectedAdminRoute = ({ children }) => {
   if (!user || user.role !== 'admin') {
     return <Navigate to="/admin/login" replace />;
   }
+  return children;
+};
+
+const ProtectedCustomerRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="pt-32 text-center">Loading...</div>;
+  if (!user) return <Navigate to="/login" replace />;
   return children;
 };
 
@@ -56,7 +61,8 @@ function App() {
         <CartProvider>
           <WishlistProvider>
             <Router>
-              <Routes>
+              <Suspense fallback={<div className="pt-32 text-center">Loading...</div>}>
+                <Routes>
                 {/* Admin Routes (No Standard Header/Footer) */}
                 <Route path="/admin/login" element={<AdminLogin />} />
                 <Route path="/admin" element={<ProtectedAdminRoute><AdminLayout /></ProtectedAdminRoute>}>
@@ -78,9 +84,10 @@ function App() {
                   <Route path="wishlist" element={<Wishlist />} />
                   <Route path="login" element={<Login />} />
                   <Route path="profile" element={<Profile />} />
-                  <Route path="checkout" element={<Checkout />} />
+                  <Route path="checkout" element={<ProtectedCustomerRoute><Checkout /></ProtectedCustomerRoute>} />
                 </Route>
-              </Routes>
+                </Routes>
+              </Suspense>
             </Router>
           </WishlistProvider>
         </CartProvider>

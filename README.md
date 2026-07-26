@@ -1,16 +1,126 @@
-# React + Vite
+# Myntra E-commerce Store
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A React/Vite storefront with an Express, MySQL, and Razorpay backend. The project includes customer cart, wishlist, checkout, profiles, and a protected admin panel.
 
-Currently, two official plugins are available:
+## Requirements
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Node.js 20 or newer
+- MySQL 8
+- Fresh Razorpay test or live credentials
 
-## React Compiler
+## Local setup
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+1. Install frontend and backend dependencies:
 
-## Expanding the Oxlint configuration
+   ```bash
+   npm install
+   npm --prefix backend install
+   ```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+2. Create the backend environment file:
+
+   ```bash
+   cp backend/.env.example backend/.env
+   ```
+
+3. Replace every placeholder in `backend/.env`. Generate the JWT secret with:
+
+   ```bash
+   openssl rand -hex 32
+   ```
+
+4. Initialize the database and run the existing migrations as needed, then run the secure-checkout migration:
+
+   ```bash
+   node backend/db-init.js
+   node backend/migrate.js
+   node backend/migrate_size.js
+   node backend/migrate_size_index.js
+   node backend/migrate_addresses.js
+   node backend/migrate_coupons.js
+   node backend/migrate_categories_settings.js
+   node backend/migrate_admin_v2.js
+   npm --prefix backend run migrate:secure
+   ```
+
+5. Create an admin only after setting `ADMIN_SEED_EMAIL` and a strong one-time `ADMIN_SEED_PASSWORD` in `backend/.env`:
+
+   ```bash
+   node backend/seed-admin.js
+   ```
+
+6. Start the API and frontend together:
+
+   ```bash
+   npm run dev
+   ```
+
+The development launcher starts the API first, waits for its health check, and
+then starts Vite. Vite proxies `/api` and `/uploads` to
+`http://127.0.0.1:8999`, keeping the HttpOnly session cookie same-origin. When
+`JWT_SECRET` is not exported in the shell, the launcher uses an ephemeral secret
+for that local session only; production still requires an explicit strong
+secret.
+
+## Required production configuration
+
+- Set `NODE_ENV=production`.
+- Set `DB_HOST`, `DB_USER`, `DB_PASSWORD`, and `DB_NAME` to the production
+  MySQL credentials. `VITE_API_URL` alone does not configure the backend
+  database connection.
+- Set a unique `JWT_SECRET` with at least 32 random characters.
+- Rotate any Razorpay credential that has ever appeared in Git history, then set `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET`.
+- Set `TRUST_PROXY=true` only when exactly one trusted reverse proxy is in front of Node.
+- Keep `CORS_ORIGINS` empty for a same-origin deployment. If the frontend is on another origin, list only the exact HTTPS origins.
+- Serve the app exclusively over HTTPS so the `Secure` HttpOnly cookie is enforced.
+- Run `npm --prefix backend run migrate:secure` before deploying the new checkout code.
+
+Payment credentials are intentionally unavailable in the admin UI and are never sent to the browser. The backend returns only the public Razorpay key ID while creating a payment order.
+
+## Production database and catalog seed
+
+A GitHub/Hostinger deployment updates application files only. It does not copy
+the local MySQL database and it does not run the catalog seed automatically.
+After the production database variables are configured, run these commands once
+from the production application terminal:
+
+```bash
+npm --prefix backend install
+npm --prefix backend run migrate:secure
+npm --prefix backend run catalog:seed
+```
+
+The catalog seed is an idempotent upsert for the managed cosmetics catalog. It
+creates or updates 20 categories and 120 products while preserving product IDs
+and existing orders. It deliberately remains a manual deployment step because
+it verifies live product pages and images; attaching it to every server restart
+would make application availability depend on a third-party website.
+
+For Hostinger, also make sure the Node backend is started with
+`npm --prefix backend start`. Set `VITE_API_URL=/api` for the same-origin setup
+shown in this repository, and keep the PHP/API proxy pointed at the same backend
+port.
+
+## Checkout security model
+
+- Payment and COD routes require a valid session.
+- User identity comes from the signed session, never the request body.
+- Product prices, coupons, shipping fees, and totals are calculated from MySQL.
+- The Razorpay order stores an HMAC binding for the user, cart, coupon, and amount.
+- Verification checks the Razorpay signature, paid amount, user, and cart binding.
+- Order creation, payment recording, stock reduction, and cart clearing share one database transaction.
+- Provider payment IDs are unique, preventing duplicate order creation.
+
+## Quality checks
+
+Run the full local verification:
+
+```bash
+npm run check
+```
+
+This runs Oxlint, backend unit tests, and the production Vite build.
+
+## Credential incident response
+
+Removing a key from the current files does not remove it from Git history. Revoke/rotate exposed Razorpay keys in the Razorpay dashboard. If the repository was shared or deployed with the old JWT fallback, replace `JWT_SECRET` so all previously issued or forged sessions become invalid.

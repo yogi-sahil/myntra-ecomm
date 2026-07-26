@@ -19,7 +19,6 @@ const StatusBadge = ({ coupon }) => {
 const AdminDiscount = () => {
   const { token } = useAuth();
   const notify = useAdminToast();
-  const formRef = useRef(null);
   const codeRef = useRef(null);
   const [coupons, setCoupons] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,6 +33,13 @@ const AdminDiscount = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const closeForm = useCallback((force = false) => {
+    if (isSaving && !force) return;
+    setShowForm(false);
+    setEditId(null);
+    setFormData(emptyForm);
+    setFormError('');
+  }, [isSaving]);
 
   const fetchCoupons = useCallback(async () => {
     setLoading(true); setError('');
@@ -69,14 +75,13 @@ const AdminDiscount = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showForm]);
+  }, [showForm, closeForm]);
 
   const openForm = (coupon = null) => {
     setEditId(coupon?.id || null); setFormError('');
     setFormData(coupon ? { code: coupon.code, type: coupon.discount_type, value: coupon.discount_value, minOrder: coupon.min_order_value, expiry: new Date(coupon.expiry_date).toISOString().slice(0, 10), status: coupon.status } : emptyForm);
     setShowForm(true); window.setTimeout(() => { codeRef.current?.focus(); }, 50);
   };
-  const closeForm = (force = false) => { if (isSaving && !force) return; setShowForm(false); setEditId(null); setFormData(emptyForm); setFormError(''); };
   const updateField = (field, value) => setFormData((current) => ({ ...current, [field]: value }));
 
   const handleSave = async (event) => {

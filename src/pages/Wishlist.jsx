@@ -30,7 +30,7 @@ const Wishlist = () => {
   }
 
   return (
-    <div className="pt-24 pb-12 w-full max-w-[1200px] mx-auto px-4">
+    <div className="pt-20 sm:pt-24 md:pt-28 pb-12 w-full max-w-[1200px] mx-auto px-4">
       <h1 className="text-[18px] font-bold text-[#282c3f] mb-8">My Wishlist <span className="font-normal text-[#535766]">{wishlistItems.length} items</span></h1>
       
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">

@@ -27,9 +27,11 @@ ul {
   margin: 0;
 }
 
-a {
-  text-decoration: none;
-  color: inherit;
+@layer base {
+  a {
+    text-decoration: none;
+    color: inherit;
+  }
 }
 
 .admin-workspace-bg {

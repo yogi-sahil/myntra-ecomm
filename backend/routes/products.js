@@ -3,6 +3,25 @@ const router = express.Router();
 const db = require('../config/db');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 
+const parseJsonArray = (value, fallback = []) => {
+  if (Array.isArray(value)) return value;
+  try {
+    const parsed = value ? JSON.parse(value) : fallback;
+    return Array.isArray(parsed) ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const formatProduct = (product) => {
+  const parsedImages = parseJsonArray(product.images);
+  return {
+    ...product,
+    images: parsedImages.length ? parsedImages : (product.image_url ? [product.image_url] : []),
+    review_data: parseJsonArray(product.review_data),
+  };
+};
+
 const validateProduct = ({ brand, title, price, original_price, discount, image_url, category }) => {
   if (!brand || !title || !category || !image_url) return 'Brand, title, category, and image URL are required';
   if (Number(price) <= 0 || Number(original_price) <= 0) return 'Prices must be greater than zero';
@@ -53,7 +72,7 @@ router.get('/', async (req, res) => {
     }
 
     const [rows] = await db.query(query, queryParams);
-    res.json(rows);
+    res.json(rows.map(formatProduct));
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server Error fetching products' });
@@ -68,7 +87,7 @@ router.get('/:id', async (req, res) => {
     if (rows.length === 0) {
       return res.status(404).json({ message: 'Product not found' });
     }
-    res.json(rows[0]);
+    res.json(formatProduct(rows[0]));
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server Error fetching product' });

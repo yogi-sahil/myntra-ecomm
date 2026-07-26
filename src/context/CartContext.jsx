@@ -1,4 +1,5 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { API_BASE_URL } from '../config';
 import { useToast } from './ToastContext';
@@ -12,61 +13,63 @@ export const CartProvider = ({ children }) => {
     try {
       const saved = localStorage.getItem('myntra_cart');
       return saved ? JSON.parse(saved) : [];
-    } catch (e) {
+    } catch {
       return [];
     }
   });
 
   const { user, token } = useAuth();
   const { showToast } = useToast();
+  const [cartLoading, setCartLoading] = useState(Boolean(token));
+  const [pendingItems, setPendingItems] = useState({});
+  const cartRef = useRef(cartItems);
+  const pendingItemsRef = useRef({});
 
   useEffect(() => {
-    if (user && token) {
-      fetchCart();
+    cartRef.current = cartItems;
+  }, [cartItems]);
+
+  const persistCart = useCallback((items) => {
+    setCartItems(items);
+    localStorage.setItem('myntra_cart', JSON.stringify(items));
+  }, []);
+
+  const fetchCart = useCallback(async () => {
+    setCartLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/cart`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Could not load your bag');
+      if (Array.isArray(data)) persistCart(data);
+    } catch (err) {
+      console.error('Failed to fetch cart:', err);
+    } finally {
+      setCartLoading(false);
     }
-  }, [user, token]);
+  }, [persistCart]);
+
+  useEffect(() => {
+    if (user && token) fetchCart();
+    else {
+      setCartItems([]);
+      setCartLoading(false);
+    }
+  }, [user, token, fetchCart]);
 
   useEffect(() => {
     try {
       if (cartItems) {
         localStorage.setItem('myntra_cart', JSON.stringify(cartItems));
       }
-    } catch (e) {}
+    } catch {}
   }, [cartItems]);
-
-  const fetchCart = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/cart`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (Array.isArray(data) && data.length > 0) {
-          setCartItems(data);
-          localStorage.setItem('myntra_cart', JSON.stringify(data));
-        }
-      }
-    } catch (err) {
-      console.error('Failed to fetch cart:', err);
-    }
-  };
 
   const getSmartSize = (prod) => {
     if (prod && prod.size) return prod.size;
-    const cat = (prod?.category || prod?.category_name || prod?.title || prod?.brand || '').toLowerCase();
-    if (cat.includes('beauty') || cat.includes('makeup') || cat.includes('cosmetic') || cat.includes('cream') || cat.includes('powder') || cat.includes('tone') || cat.includes('lakme') || cat.includes('skincare')) {
-      return 'Standard';
-    }
-    if (cat.includes('perfume') || cat.includes('fragrance') || cat.includes('spray')) {
-      return '100ml';
-    }
-    if (cat.includes('watch') || cat.includes('jewel') || cat.includes('accessory') || cat.includes('bag') || cat.includes('sunglass')) {
-      return 'One Size';
-    }
-    if (cat.includes('shoe') || cat.includes('footwear') || cat.includes('sneaker')) {
-      return 'UK 8';
-    }
-    return 'M';
+    const available = Array.isArray(prod?.available_sizes)
+      ? prod.available_sizes
+      : String(prod?.available_sizes || '').split(',').map((value) => value.trim()).filter(Boolean);
+    return available[0] || 'One Size';
   };
 
   const addToCart = async (product, size = null) => {
@@ -76,7 +79,8 @@ export const CartProvider = ({ children }) => {
     }
 
     const effectiveSize = size || getSmartSize(product);
-    
+    const previousItems = cartRef.current;
+
     // Optimistic UI update
     setCartItems((prevItems) => {
       const existingItem = prevItems.find((item) => item.id === product.id && item.size === effectiveSize);
@@ -92,24 +96,27 @@ export const CartProvider = ({ children }) => {
       return updated;
     });
 
-    showToast('Added to Bag! 🛍️', 'success');
-
     try {
-      await fetch(`${API_BASE_URL}/cart`, {
+      const response = await fetch(`${API_BASE_URL}/cart`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}` 
         },
         body: JSON.stringify({ productId: product.id, quantity: 1, size: effectiveSize })
       });
-      fetchCart();
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Could not add this item');
+      if (Array.isArray(data.items)) persistCart(data.items);
+      showToast('Added to Bag! 🛍️', 'success');
     } catch (err) {
       console.error('Failed to add to cart on server', err);
+      persistCart(previousItems);
+      showToast(err.message || 'Could not add this item', 'error');
     }
   };
 
   const removeFromCart = async (cartItemId, productId, size) => {
+    const previousItems = cartRef.current;
     setCartItems((prevItems) => {
       const updated = prevItems.filter((item) => {
         if (cartItemId && item.cart_item_id) {
@@ -125,17 +132,25 @@ export const CartProvider = ({ children }) => {
 
     try {
       if (cartItemId) {
-        await fetch(`${API_BASE_URL}/cart/${cartItemId}`, {
+        const response = await fetch(`${API_BASE_URL}/cart/${cartItemId}`, {
           method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` }
         });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Could not remove this item');
+        if (Array.isArray(data.items)) persistCart(data.items);
       }
     } catch (err) {
       console.error('Failed to remove from cart on server', err);
+      persistCart(previousItems);
+      showToast(err.message || 'Could not remove this item', 'error');
     }
   };
 
   const updateQuantity = async (cartItemId, amount, productId, size) => {
+    const pendingKey = String(cartItemId || `${productId}-${size || ''}`);
+    if (pendingItemsRef.current[pendingKey]) return;
+    pendingItemsRef.current[pendingKey] = true;
+    const previousItems = cartRef.current;
     let targetNewQty = 1;
 
     setCartItems((prevItems) => {
@@ -154,24 +169,38 @@ export const CartProvider = ({ children }) => {
       return updated;
     });
 
-    if (!token) return;
+    if (!token) {
+      delete pendingItemsRef.current[pendingKey];
+      return;
+    }
+    setPendingItems((current) => ({ ...current, [pendingKey]: true }));
 
     try {
-      await fetch(`${API_BASE_URL}/cart/update-qty`, {
+      const response = await fetch(`${API_BASE_URL}/cart/update-qty`, {
         method: 'PUT',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}` 
         },
-        body: JSON.stringify({ 
-          cartItemId: cartItemId || null, 
-          productId: productId, 
-          size: size, 
-          quantity: targetNewQty 
+        body: JSON.stringify({
+          cartItemId: cartItemId || null,
+          productId: productId,
+          size: size,
+          quantity: targetNewQty
         })
       });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Could not update quantity');
     } catch (err) {
       console.error('Failed to update quantity on server', err);
+      persistCart(previousItems);
+      showToast(err.message || 'Could not update quantity', 'error');
+    } finally {
+      delete pendingItemsRef.current[pendingKey];
+      setPendingItems((current) => {
+        const next = { ...current };
+        delete next[pendingKey];
+        return next;
+      });
     }
   };
 
@@ -182,7 +211,6 @@ export const CartProvider = ({ children }) => {
     try {
       await fetch(`${API_BASE_URL}/cart`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
       });
     } catch (err) {
       console.error('Failed to clear cart', err);
@@ -193,15 +221,18 @@ export const CartProvider = ({ children }) => {
   const totalItems = cartItems.reduce((total, item) => total + (item.quantity || 1), 0);
 
   return (
-    <CartContext.Provider value={{ 
-      cartItems, 
+    <CartContext.Provider value={{
+      cartItems: cartItems || [],
       setCartItems,
-      addToCart, 
-      removeFromCart, 
-      updateQuantity, 
+      addToCart,
+      removeFromCart,
+      updateQuantity,
       clearCart,
-      cartTotal,
-      totalItems 
+      cartTotal: cartTotal || 0,
+      totalItems: totalItems || 0,
+      totalCount: totalItems || 0,
+      cartLoading,
+      pendingItems
     }}>
       {children}
     </CartContext.Provider>

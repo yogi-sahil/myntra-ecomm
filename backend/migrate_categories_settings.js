@@ -46,11 +46,12 @@ async function migrate() {
       ('contact_email', 'support@myntra.com'),
       ('support_phone', '+91 98765 43210'),
       ('currency', 'INR'),
-      ('razorpay_key_id', 'rzp_test_QvFiXZe6iRfjAH'),
-      ('razorpay_key_secret', 'uPdWXYO71FQeOgpfNApnPh6T'),
       ('convenience_fee', '99'),
       ('free_shipping_threshold', '1000')
     `);
+    await connection.query(
+      "DELETE FROM settings WHERE setting_key IN ('razorpay_key_id', 'razorpay_key_secret')"
+    );
     console.log('Inserted default settings.');
     
     console.log('Migration successful!');
