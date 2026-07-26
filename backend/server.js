@@ -153,6 +153,20 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Myntra API is running smoothly!' });
 });
 
+// Serve the production React build from the same Express origin as the API.
+// Same-origin hosting keeps the HttpOnly session cookie and CORS configuration simple.
+const frontendDistDir = path.join(__dirname, '..', 'dist');
+const frontendIndex = path.join(frontendDistDir, 'index.html');
+if (process.env.NODE_ENV === 'production' && fs.existsSync(frontendIndex)) {
+  app.use(express.static(frontendDistDir));
+  app.use((req, res, next) => {
+    const acceptsHtml = req.method === 'GET' && req.accepts('html');
+    const isBackendPath = req.path.startsWith('/api') || req.path.startsWith('/uploads');
+    if (acceptsHtml && !isBackendPath) return res.sendFile(frontendIndex);
+    return next();
+  });
+}
+
 app.use((req, res) => {
   res.status(404).json({ message: 'API route not found' });
 });
