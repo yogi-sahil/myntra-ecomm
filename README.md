@@ -96,10 +96,13 @@ and existing orders. It deliberately remains a manual deployment step because
 it verifies live product pages and images; attaching it to every server restart
 would make application availability depend on a third-party website.
 
-For Hostinger, also make sure the Node backend is started with
-`npm --prefix backend start`. Set `VITE_API_URL=/api` for the same-origin setup
-shown in this repository, and keep the PHP/API proxy pointed at the same backend
-port.
+For Hostinger, deploy the repository as a server-side Node application using
+the repository root, `npm run build` as the build command, and
+`backend/server.js` as the entry file (or `npm start` as the start command).
+The root install automatically installs the backend's production dependencies,
+and Express serves both the React build and `/api` from one origin. Set
+`VITE_API_URL=/api`; `CORS_ORIGINS` should be omitted or empty for this
+same-origin setup.
 
 ## Checkout security model
 
