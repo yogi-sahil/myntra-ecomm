@@ -79,6 +79,20 @@ secret.
 
 Payment credentials are intentionally unavailable in the admin UI and are never sent to the browser. The backend returns only the public Razorpay key ID while creating a payment order.
 
+## Production admin bootstrap
+
+Set `ADMIN_SEED_EMAIL`, `ADMIN_SEED_PASSWORD`, `ADMIN_SEED_NAME`, and a unique
+`ADMIN_SEED_MOBILE` in the production environment. When
+`ADMIN_SEED_PASSWORD` is present, the server securely creates or updates that
+admin before accepting traffic. The password is bcrypt-hashed and is never
+logged.
+
+After the deployment logs confirm that the configured production admin was
+created or updated, remove `ADMIN_SEED_PASSWORD` from the environment and
+restart the app. The database account remains active, while later restarts skip
+the bootstrap. Setting a new temporary password later intentionally resets the
+same admin account.
+
 ## Production database and catalog seed
 
 A versioned snapshot of the verified local cosmetics catalog ships with the
