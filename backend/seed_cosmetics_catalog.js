@@ -34,6 +34,7 @@ async function ensureColumns(connection) {
       ['stock_quantity', 'ALTER TABLE products ADD COLUMN stock_quantity INT NOT NULL DEFAULT 50'],
       ['sku', 'ALTER TABLE products ADD COLUMN sku VARCHAR(100) NULL'],
       ['available_sizes', "ALTER TABLE products ADD COLUMN available_sizes VARCHAR(255) NOT NULL DEFAULT 'One Size'"],
+      ['seller', 'ALTER TABLE products ADD COLUMN seller VARCHAR(255) NULL'],
     ],
     categories: [
       ['image_url', 'ALTER TABLE categories ADD COLUMN image_url VARCHAR(500) NULL'],
@@ -298,6 +299,7 @@ if (require.main === module) {
 
 module.exports = {
   catalogVersion,
+  ensureColumns,
   ensureProductionCatalog,
   seedCosmeticsCatalog,
   validateCatalog,
