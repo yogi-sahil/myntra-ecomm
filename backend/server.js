@@ -21,6 +21,7 @@ const { isOriginAllowed, parseAllowedOrigins } = require('./config/cors');
 const { createRateLimit } = require('./middleware/rateLimit');
 const { authAttemptsOnly } = require('./middleware/authAttemptLimiter');
 const { ensureProductionCatalog } = require('./seed_cosmetics_catalog');
+const { ensureProductionAdmin } = require('./adminBootstrap');
 
 validateEnvironment();
 
@@ -202,6 +203,7 @@ process.on('unhandledRejection', (err) => {
 // a storefront whose catalog endpoints return 500 errors.
 async function startServer() {
   await ensureProductionCatalog();
+  await ensureProductionAdmin();
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
   });
