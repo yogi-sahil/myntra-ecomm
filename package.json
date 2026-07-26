@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "postinstall": "npm --prefix backend ci --omit=dev",
+    "postinstall": "npm --prefix backend ci --omit=dev && npm run build",
     "prestart": "npm --prefix backend run migrate:secure",
     "start": "node backend/server.js",
     "dev": "node scripts/dev.mjs",
