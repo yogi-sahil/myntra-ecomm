@@ -1,4 +1,4 @@
-try { require('dotenv').config(); } catch (e) {}
+try { require('dotenv').config(); } catch {}
 const db = require('./config/db');
 
 const categoriesData = [

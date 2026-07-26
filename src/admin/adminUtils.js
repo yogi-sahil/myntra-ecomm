@@ -1,15 +1,18 @@
 import { API_BASE_URL } from '../config';
 export const API_BASE = API_BASE_URL;
 
-export const getAuthHeaders = (token, includeJson = false) => ({
+export const getAuthHeaders = (_token, includeJson = false) => ({
   ...(includeJson ? { 'Content-Type': 'application/json' } : {}),
-  Authorization: `Bearer ${token || localStorage.getItem('token') || ''}`,
 });
 
 export const getApiError = async (response, fallback = 'Something went wrong. Please try again.') => {
   try {
-    const payload = await response.json();
-    return payload.message || fallback;
+    const contentType = response?.headers?.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      const payload = await response.json();
+      return payload.message || fallback;
+    }
+    return fallback;
   } catch {
     return fallback;
   }
@@ -34,4 +37,3 @@ export const formatDate = (value, options = {}) => {
 
 export const paginate = (items, currentPage, pageSize) =>
   items.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-

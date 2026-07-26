@@ -4,9 +4,12 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node scripts/dev.mjs",
+    "dev:frontend": "vite",
     "build": "vite build",
     "lint": "oxlint",
+    "test": "npm --prefix backend test",
+    "check": "npm run lint && npm run test && npm run build",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -15,7 +18,7 @@
     "lucide-react": "^1.25.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "react-router-dom": "^7.18.1"
+    "react-router-dom": "7.18.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",

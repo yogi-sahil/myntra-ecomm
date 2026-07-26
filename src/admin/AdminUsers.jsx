@@ -68,7 +68,7 @@ const AdminUsers = () => {
   };
 
   const openForm = () => { setFormData(emptyForm); setFormError(''); setShowForm(true); window.setTimeout(() => { formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); nameRef.current?.focus(); }, 50); };
-  const closeForm = (force = false) => { if (isSaving && !force) return; setShowForm(false); setFormData(emptyForm); setFormError(''); };
+  const closeForm = useCallback((force = false) => { if (isSaving && !force) return; setShowForm(false); setFormData(emptyForm); setFormError(''); }, [isSaving]);
   const updateField = (field, value) => setFormData((current) => ({ ...current, [field]: value }));
 
   const handleCreate = async (event) => {
@@ -132,7 +132,7 @@ const AdminUsers = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showForm]);
+  }, [showForm, closeForm]);
 
   return (
     <div className="flex flex-col gap-6">

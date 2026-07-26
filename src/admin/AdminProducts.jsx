@@ -133,13 +133,13 @@ const AdminProducts = () => {
     }, 50);
   };
 
-  const closeForm = (force = false) => {
+  const closeForm = useCallback((force = false) => {
     if (isSaving && !force) return;
     setShowForm(false);
     setEditId(null);
     setFormData(emptyForm);
     setFormError('');
-  };
+  }, [isSaving]);
 
   // Auto calculate discount / price
   const handlePriceChange = (field, value) => {
@@ -187,7 +187,7 @@ const AdminProducts = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showForm]);
+  }, [showForm, closeForm]);
 
   const validateForm = () => {
     const price = Number(formData.price);

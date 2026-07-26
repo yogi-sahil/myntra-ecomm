@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -33,6 +33,18 @@ const Profile = () => {
     mobile: user?.mobile || ''
   });
 
+  const fetchAddresses = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/profile/addresses`);
+      if (response.ok) {
+        const data = await response.json();
+        setAddresses(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch addresses:', err);
+    }
+  }, []);
+
   useEffect(() => {
     if (!user) {
       navigate('/login');
@@ -43,9 +55,7 @@ const Profile = () => {
       setLoading(true);
       try {
         if (activeTab === 'orders') {
-          const response = await fetch(`${API_BASE_URL}/orders/my-orders`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
+          const response = await fetch(`${API_BASE_URL}/orders/my-orders`);
           if (response.ok) {
             const data = await response.json();
             setOrders(Array.isArray(data) ? data : []);
@@ -61,21 +71,7 @@ const Profile = () => {
     };
 
     fetchData();
-  }, [user, token, navigate, activeTab]);
-
-  const fetchAddresses = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/profile/addresses`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setAddresses(Array.isArray(data) ? data : []);
-      }
-    } catch (err) {
-      console.error('Failed to fetch addresses:', err);
-    }
-  };
+  }, [user, token, navigate, activeTab, fetchAddresses]);
 
   const handleLogout = () => {
     logout();
@@ -89,8 +85,7 @@ const Profile = () => {
       const response = await fetch(`${API_BASE_URL}/profile/addresses`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(newAddress)
       });
@@ -112,7 +107,6 @@ const Profile = () => {
     try {
       const response = await fetch(`${API_BASE_URL}/profile/addresses/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
       });
       if (response.ok) {
         showToast('Address removed', 'success');
@@ -127,7 +121,7 @@ const Profile = () => {
   const handleUpdateProfile = (e) => {
     e.preventDefault();
     const updatedUser = { ...user, name: profileData.name, mobile: profileData.mobile };
-    login(updatedUser, token);
+    login(updatedUser);
     setIsEditingProfile(false);
     showToast('Profile updated successfully! ✨', 'success');
   };

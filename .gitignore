@@ -13,6 +13,10 @@ dist-ssr
 *.local
 .env
 
+# Local exports and source/reference images (not used by the application)
+/myntra_database.sql
+/product_image/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

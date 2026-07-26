@@ -3,45 +3,6 @@ const router = express.Router();
 const db = require('../config/db');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 
-// @route   POST /api/orders
-// @desc    Create a new order (Checkout)
-router.post('/', async (req, res) => {
-  const { userId, totalAmount, shippingAddress, items } = req.body;
-  
-  if (!items || items.length === 0) {
-    return res.status(400).json({ message: 'No items in order' });
-  }
-
-  const connection = await db.getConnection();
-  try {
-    await connection.beginTransaction();
-
-    // 1. Create the Order
-    const [orderResult] = await connection.query(
-      'INSERT INTO orders (user_id, total_amount, shipping_address) VALUES (?, ?, ?)',
-      [userId || 2, totalAmount, shippingAddress || 'Default Address'] // defaulting user for now
-    );
-    const orderId = orderResult.insertId;
-
-    // 2. Insert Order Items
-    for (const item of items) {
-      await connection.query(
-        'INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)',
-        [orderId, item.id, item.quantity, item.price]
-      );
-    }
-
-    await connection.commit();
-    res.status(201).json({ message: 'Order placed successfully', orderId });
-  } catch (error) {
-    await connection.rollback();
-    console.error(error);
-    res.status(500).json({ message: 'Server Error placing order' });
-  } finally {
-    connection.release();
-  }
-});
-
 // @route   GET /api/admin/orders
 // @desc    Get all orders (Admin)
 router.get('/', protect, adminOnly, async (req, res) => {

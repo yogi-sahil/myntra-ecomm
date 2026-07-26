@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
@@ -6,46 +6,92 @@ import { Link } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
 import { useToast } from '../context/ToastContext';
 
+const CHECKOUT_COUPON_KEY = 'myntra_checkout_coupon';
+const PRODUCT_FALLBACK = 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=500&q=80';
+
 const Cart = () => {
-  const { cartItems, removeFromCart, updateQuantity, cartTotal, totalItems } = useCart();
+  const {
+    cartItems,
+    removeFromCart,
+    updateQuantity,
+    cartTotal,
+    totalItems,
+    cartLoading,
+    pendingItems
+  } = useCart();
   const { user, token } = useAuth();
   const { showToast } = useToast();
   const [couponInput, setCouponInput] = useState('');
-  const [appliedCoupon, setAppliedCoupon] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(() => sessionStorage.getItem(CHECKOUT_COUPON_KEY) || '');
   const [discountAmount, setDiscountAmount] = useState(0);
   const [defaultAddress, setDefaultAddress] = useState(null);
+  const [serverPricing, setServerPricing] = useState(null);
+  const [pricingLoading, setPricingLoading] = useState(false);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const skipQuoteKeyRef = useRef('');
+  const quoteItems = useMemo(
+    () => cartItems.map((item) => ({ id: item.id, quantity: item.quantity, size: item.size })),
+    [cartItems]
+  );
 
   useEffect(() => {
     if (token) {
-      fetch(`${API_BASE_URL}/profile/addresses`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      fetch(`${API_BASE_URL}/profile/addresses`)
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
-          const def = data.find(a => a.is_default) || data[0];
+          const defaultSelection = data.find(a => a.is_default) || data[0];
+          setDefaultAddress(defaultSelection);
         }
       })
       .catch(err => console.error(err));
     }
   }, [token]);
 
+  useEffect(() => {
+    if (!token || quoteItems.length === 0) {
+      setServerPricing(null);
+      setPricingLoading(false);
+      return;
+    }
+    const quoteKey = JSON.stringify([quoteItems, appliedCoupon || null]);
+    if (skipQuoteKeyRef.current === quoteKey) {
+      skipQuoteKeyRef.current = '';
+      return;
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setPricingLoading(true);
+    fetch(`${API_BASE_URL}/payment/quote`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: quoteItems, couponCode: appliedCoupon || null }),
+        signal: controller.signal
+    })
+      .then(async (response) => {
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.message || 'Could not update price');
+          return data;
+      })
+      .then((pricing) => {
+          setServerPricing(pricing);
+          setDiscountAmount(Number(pricing.discount || 0));
+      })
+        .catch((error) => {
+          if (error.name !== 'AbortError') setServerPricing(null);
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setPricingLoading(false);
+        });
+    }, 180);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [token, quoteItems, appliedCoupon]);
+
   const getCategorySmartSize = (item) => {
-    if (item.size && item.size !== 'M') return item.size;
-    const text = (item.category || item.category_name || item.title || item.brand || '').toLowerCase();
-    if (text.includes('beauty') || text.includes('makeup') || text.includes('cosmetic') || text.includes('cream') || text.includes('powder') || text.includes('tone') || text.includes('lakme') || text.includes('skincare')) {
-      return '50g / Standard';
-    }
-    if (text.includes('perfume') || text.includes('fragrance') || text.includes('spray')) {
-      return '100ml';
-    }
-    if (text.includes('watch') || text.includes('jewel') || text.includes('accessory') || text.includes('bag') || text.includes('sunglass')) {
-      return 'One Size';
-    }
-    if (text.includes('shoe') || text.includes('footwear') || text.includes('sneaker')) {
-      return item.size || 'UK 8';
-    }
-    return item.size || 'M';
+    return item.size || 'One Size';
   };
 
   // Calculate some values based on Myntra's real UI
@@ -55,37 +101,33 @@ const Cart = () => {
     return acc + (itemOriginal * qty);
   }, 0);
   const totalDiscount = Math.max(0, totalMRP - cartTotal);
-  const convenienceFee = 99; // fixed convenience fee
+  const convenienceFee = serverPricing?.shippingFee ?? 99;
 
   const handleApplyCoupon = async () => {
-    if (!couponInput) return;
+    const normalizedCoupon = couponInput.trim().toUpperCase();
+    if (!normalizedCoupon || couponLoading) return;
+    setCouponLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/coupons/validate`, {
+      const response = await fetch(`${API_BASE_URL}/payment/quote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: couponInput, cartTotal })
+        body: JSON.stringify({ items: quoteItems, couponCode: normalizedCoupon })
       });
       const data = await response.json();
-      
-      if (response.ok) {
-        let discount = 0;
-        if (data.coupon.type === 'Percentage') {
-          discount = Math.floor(cartTotal * (data.coupon.value / 100));
-        } else {
-          discount = data.coupon.value;
-        }
-        // Ensure discount doesn't exceed cart total
-        discount = Math.min(discount, cartTotal);
-        
-        setDiscountAmount(discount);
-        setAppliedCoupon(data.coupon.code);
-        showToast(data.message, 'success');
-      } else {
-        showToast(data.message || 'Invalid coupon code', 'error');
-      }
+      if (!response.ok) throw new Error(data.message || 'Invalid coupon code');
+      const appliedCode = data.couponCode || normalizedCoupon;
+      skipQuoteKeyRef.current = JSON.stringify([quoteItems, appliedCode]);
+      setServerPricing(data);
+      setDiscountAmount(Number(data.discount || 0));
+      setAppliedCoupon(appliedCode);
+      setCouponInput('');
+      sessionStorage.setItem(CHECKOUT_COUPON_KEY, appliedCode);
+      showToast(`Coupon applied — you saved ₹${Number(data.discount || 0)}`, 'success');
     } catch (err) {
       console.error(err);
-      showToast('Failed to apply coupon', 'error');
+      showToast(err.message || 'Failed to apply coupon', 'error');
+    } finally {
+      setCouponLoading(false);
     }
   };
 
@@ -93,8 +135,24 @@ const Cart = () => {
     setCouponInput('');
     setAppliedCoupon('');
     setDiscountAmount(0);
+    sessionStorage.removeItem(CHECKOUT_COUPON_KEY);
   };
+
+  const isItemPending = (item) => Boolean(pendingItems[String(item.cart_item_id || `${item.id}-${item.size || ''}`)]);
   
+  if (cartLoading) {
+    return (
+      <div className="pt-32 pb-20 min-h-[60vh] max-w-[1000px] mx-auto px-4" aria-live="polite">
+        <div className="h-5 w-40 bg-gray-200 rounded animate-pulse mb-6" />
+        <div className="grid md:grid-cols-[1fr_340px] gap-6">
+          <div className="h-64 bg-gray-100 rounded-lg animate-pulse" />
+          <div className="h-72 bg-gray-100 rounded-lg animate-pulse" />
+        </div>
+        <span className="sr-only">Loading your bag</span>
+      </div>
+    );
+  }
+
   if (cartItems.length === 0) {
     return (
       <div className="pt-32 pb-20 w-full min-h-[60vh] flex flex-col items-center justify-center bg-white">
@@ -109,14 +167,14 @@ const Cart = () => {
           to="/products"
           className="border border-[#ff3f6c] text-[#ff3f6c] font-bold text-[14px] px-12 py-3 rounded-[4px] hover:bg-[#ff3f6c] hover:text-white transition-colors"
         >
-          ADD ITEMS FROM WISHLIST
+          EXPLORE PRODUCTS
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="pt-24 pb-12 w-full max-w-[1000px] mx-auto px-4 flex flex-col md:flex-row gap-6 items-start">
+    <div className="pt-20 sm:pt-24 md:pt-28 pb-12 w-full max-w-[1000px] mx-auto px-4 flex flex-col md:flex-row gap-6 items-start">
       {/* Left Column: Cart Items */}
       <div className="w-full md:w-[65%] flex flex-col gap-4">
         
@@ -160,36 +218,43 @@ const Cart = () => {
             <div key={item.cart_item_id || item.id} className="p-4 border-b border-[#eaeaec] last:border-b-0 relative group">
               <div className="flex gap-4">
                 {/* Product Image */}
-                <Link to={`/product/${item.id}`} className="w-[110px] h-[146px] flex-shrink-0 relative bg-gray-100 overflow-hidden">
+                <Link to={`/product/${item.id}`} className="w-[96px] sm:w-[110px] h-[128px] sm:h-[146px] flex-shrink-0 relative bg-[#f8f8f8] overflow-hidden rounded-sm">
                   <img 
-                    src={item.image_url || item.image || 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=500&q=80'} 
+                    src={item.image_url || item.image || PRODUCT_FALLBACK}
                     alt={item.title} 
-                    onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=500&q=80'; }}
-                    className="w-full h-full object-cover" 
+                    onError={(e) => { e.target.src = PRODUCT_FALLBACK; }}
+                    className="w-full h-full object-contain"
                   />
                 </Link>
 
                 {/* Product Details */}
                 <div className="flex-1">
-                  <div className="flex justify-between pr-6">
+                  <div className="pr-7">
                     <h3 className="text-[14px] font-bold text-[#282c3f]">{item.brand}</h3>
-                    <p className="text-[14px] text-[#282c3f] truncate w-[200px]">{item.title}</p>
+                    <p className="text-[13px] text-[#535766] mt-0.5 line-clamp-2">{item.title}</p>
                   </div>
                   
-                  <div className="flex items-center gap-2 mt-2">
-                    <button className="bg-gray-100 px-2 py-1 text-[12px] font-bold text-[#282c3f] rounded-[2px] flex items-center gap-1">
-                      Size: {getCategorySmartSize(item)} 
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    </button>
+                  <div className="flex flex-wrap items-center gap-2 mt-3">
+                    <span className="bg-gray-100 px-2 py-1 text-[12px] font-semibold text-[#282c3f] rounded-[2px]">
+                      Variant: {getCategorySmartSize(item)}
+                    </span>
                     
-                    <div className="bg-gray-100 px-2 py-1 text-[12px] font-bold text-[#282c3f] rounded-[2px] flex items-center gap-3">
-                      <button onClick={() => updateQuantity(item.cart_item_id, -1, item.id, item.size)} className="text-gray-500 hover:text-black focus:outline-none">
+                    <div className="bg-gray-100 px-1 py-1 text-[12px] font-bold text-[#282c3f] rounded-[2px] flex items-center gap-1">
+                      <button
+                        onClick={() => updateQuantity(item.cart_item_id, -1, item.id, item.size)}
+                        disabled={item.quantity <= 1 || isItemPending(item)}
+                        aria-label={`Decrease quantity of ${item.title}`}
+                        className="w-7 h-6 rounded text-gray-600 hover:bg-white disabled:opacity-35 disabled:cursor-not-allowed"
+                      >
                         -
                       </button>
-                      <span>Qty: {item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.cart_item_id, 1, item.id, item.size)} className="text-gray-500 hover:text-black focus:outline-none">
+                      <span className="min-w-12 text-center">{isItemPending(item) ? 'Saving…' : `Qty: ${item.quantity}`}</span>
+                      <button
+                        onClick={() => updateQuantity(item.cart_item_id, 1, item.id, item.size)}
+                        disabled={item.quantity >= 10 || isItemPending(item)}
+                        aria-label={`Increase quantity of ${item.title}`}
+                        className="w-7 h-6 rounded text-gray-600 hover:bg-white disabled:opacity-35 disabled:cursor-not-allowed"
+                      >
                         +
                       </button>
                     </div>
@@ -217,8 +282,10 @@ const Cart = () => {
                 {/* Remove Item Button */}
                 <button 
                   onClick={() => removeFromCart(item.cart_item_id, item.id, item.size)}
+                  disabled={isItemPending(item)}
                   className="absolute top-4 right-4 text-gray-400 hover:text-red-500 transition-colors focus:outline-none"
                   title="Remove item"
+                  aria-label={`Remove ${item.title} from bag`}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -251,13 +318,18 @@ const Cart = () => {
             <div className="flex gap-2">
               <input 
                 type="text" 
-                placeholder="Enter coupon (e.g. MYNTRA10)" 
+                placeholder="Enter coupon code"
                 value={couponInput}
                 onChange={(e) => setCouponInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleApplyCoupon(); }}
                 className="flex-1 border border-[#d4d5d9] px-3 py-1 outline-none text-[13px] uppercase"
               />
-              <button onClick={handleApplyCoupon} className="text-[#ff3f6c] border border-[#ff3f6c] px-4 py-1 rounded-[4px] uppercase text-[12px] hover:bg-gray-50">
-                Apply
+              <button
+                onClick={handleApplyCoupon}
+                disabled={!couponInput.trim() || couponLoading}
+                className="text-[#ff3f6c] border border-[#ff3f6c] px-4 py-1 rounded-[4px] uppercase text-[12px] hover:bg-gray-50 disabled:opacity-50"
+              >
+                {couponLoading ? 'Checking…' : 'Apply'}
               </button>
             </div>
           )}
@@ -288,19 +360,26 @@ const Cart = () => {
               </div>
             )}
             <div className="flex justify-between">
-              <span>Convenience Fee</span>
+              <span>Delivery Fee</span>
               <span className="text-[#282c3f]">Rs. {convenienceFee}</span>
             </div>
           </div>
 
           <div className="flex justify-between items-center text-[15px] font-bold text-[#282c3f] mb-6">
             <span>Total Amount</span>
-            <span>Rs. {cartTotal - discountAmount + convenienceFee}</span>
+            <span>{pricingLoading ? 'Updating…' : `Rs. ${serverPricing?.total ?? (cartTotal - discountAmount + convenienceFee)}`}</span>
           </div>
 
-          <Link to="/checkout" state={{ discountAmount }} className="w-full bg-[#ff3f6c] text-white font-bold py-3 text-[14px] rounded-[2px] hover:bg-[#e11b4c] transition-colors flex justify-center mt-2">
-            PLACE ORDER
+          <Link
+            to="/checkout"
+            state={{ discountAmount, couponCode: appliedCoupon || null }}
+            aria-disabled={pricingLoading}
+            onClick={(event) => { if (pricingLoading) event.preventDefault(); }}
+            className={`w-full text-white font-bold py-3 text-[14px] rounded-[2px] transition-colors flex justify-center mt-2 ${pricingLoading ? 'bg-gray-400 pointer-events-none' : 'bg-[#ff3f6c] hover:bg-[#e11b4c]'}`}
+          >
+            CONTINUE TO CHECKOUT
           </Link>
+          <p className="text-center text-[11px] text-[#7e818c] mt-3">Secure payment • Server-verified prices</p>
         </div>
       </div>
     </div>

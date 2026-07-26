@@ -35,35 +35,11 @@ const Header = () => {
     }
   };
 
-  // Mega Menu Data
-  const menCategories = [
-    { title: 'Topwear', items: ['T-shirts', 'Casual Shirts', 'Formal Shirts', 'Sweatshirts', 'Sweaters', 'Jackets', 'Blazers & Coats'] },
-    { title: 'Indian & Festive Wear', items: ['Kurtas & Kurta Sets', 'Sherwanis', 'Nehru Jackets', 'Dhotis'] },
-    { title: 'Bottomwear', items: ['Jeans', 'Casual Trousers', 'Formal Trousers', 'Shorts', 'Track Pants & Joggers'] },
-    { title: 'Footwear', items: ['Casual Shoes', 'Sports Shoes', 'Formal Shoes', 'Sneakers', 'Sandals', 'Flip Flops'] }
-  ];
-
-  const womenCategories = [
-    { title: 'Indian & Fusion Wear', items: ['Kurtas & Suits', 'Kurtis & Tops', 'Sarees', 'Ethnic Wear', 'Skirts & Palazzos', 'Lehenga Cholis'] },
-    { title: 'Western Wear', items: ['Dresses', 'Tops', 'Tshirts', 'Jeans', 'Trousers', 'Shorts & Skirts', 'Jumpsuits'] },
-    { title: 'Footwear', items: ['Flats', 'Casual Shoes', 'Heels', 'Boots', 'Sports Shoes'] }
-  ];
-
-  const kidsCategories = [
-    { title: 'Boys Clothing', items: ['T-Shirts', 'Shirts', 'Shorts', 'Jeans', 'Clothing Sets', 'Ethnic Wear'] },
-    { title: 'Girls Clothing', items: ['Dresses', 'Tops', 'Clothing Sets', 'Lehenga choli', 'Kurta Sets'] },
-    { title: 'Footwear', items: ['Casual Shoes', 'Flipflops', 'Sports Shoes', 'Sandals', 'School Shoes'] }
-  ];
-
-  const beautyCategories = [
-    { title: 'Makeup & Cosmetics', items: ['Strobe Cream', 'Highlighter', 'Makeup Kits', 'Mascara', 'Foundation', 'Lipsticks', 'Makeup Fixer'] },
-    { title: 'Fragrances & Perfumes', items: ['Women Perfumes', 'Men Perfumes', 'Fragrances'] },
-    { title: 'Skincare & Grooming', items: ['Skincare', 'Grooming'] }
-  ];
-
-  const watchesCategories = [
-    { title: 'Watches Collection', items: ['Watches', 'Smartwatches'] },
-    { title: 'Top Brands', items: ['Fossil', 'Casio', 'Apple', 'Puma'] }
+  const cosmeticsCategories = [
+    { title: 'Skin & Lip Care', items: ['Face Wash', 'Serums & Treatments', 'Sunscreen & Moisturiser', 'Lip Care', 'Toners & Face Mists', 'Face Masks & Exfoliators'] },
+    { title: 'Makeup', items: ['Eye Makeup', 'Face Makeup', 'Lip Makeup', 'Nail Care', 'Cleansers & Makeup Removers', 'Beauty Tools'] },
+    { title: 'Hair & Body', items: ['Hair Care', 'Hair Styling & Masks', 'Body & Bath', 'Hand & Foot Care'] },
+    { title: 'Grooming & Hygiene', items: ["Men's Grooming", 'Shaving & Hair Removal', 'Intimate & Personal Care', 'Fragrance & Deodorant'] },
   ];
 
   const MegaMenu = ({ categories }) => (
@@ -89,7 +65,7 @@ const Header = () => {
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm h-20 w-full">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm h-16 md:h-20 w-full">
         <div className="max-w-[1400px] mx-auto h-full flex items-center justify-between px-4 sm:px-6 relative">
           
           {/* Left: Mobile Menu Toggle & Logo */}
@@ -120,36 +96,36 @@ const Header = () => {
           </div>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden lg:flex h-full">
-            <ul className="flex items-center h-full font-bold text-[13px] uppercase text-[#282c3f] tracking-[0.5px]">
-              <li className="group cursor-pointer h-full px-4 flex items-center hover:border-b-4 hover:border-[#ee5f73] transition-colors">
-                <Link to="/products?category=Men%20T-Shirts">Men</Link>
-                <MegaMenu categories={menCategories} />
+          <nav className="hidden xl:flex h-full">
+            <ul className="flex items-center h-full font-extrabold text-[13px] uppercase text-[#282c3f] tracking-[0.5px]">
+              <li className="group cursor-pointer h-full px-3.5 flex items-center border-b-4 border-transparent hover:border-[#ee5f73] transition-colors">
+                <Link to="/products?category=Face%20Wash">Skin</Link>
+                <MegaMenu categories={cosmeticsCategories} />
               </li>
               
-              <li className="group cursor-pointer h-full px-4 flex items-center hover:border-b-4 hover:border-[#fb56c1] transition-colors">
-                <Link to="/products?category=Women%20Sarees">Women</Link>
-                <MegaMenu categories={womenCategories} />
+              <li className="group cursor-pointer h-full px-3.5 flex items-center border-b-4 border-transparent hover:border-[#fb56c1] transition-colors">
+                <Link to="/products?category=Face%20Makeup">Makeup</Link>
               </li>
               
-              <li className="group cursor-pointer h-full px-4 flex items-center hover:border-b-4 hover:border-[#f26a10] transition-colors">
-                <Link to="/products?category=Kids%20Clothing">Kids</Link>
-                <MegaMenu categories={kidsCategories} />
+              <li className="group cursor-pointer h-full px-3.5 flex items-center border-b-4 border-transparent hover:border-[#f26a10] transition-colors">
+                <Link to="/products?category=Hair%20Care">Hair</Link>
               </li>
               
-              <li className="group cursor-pointer h-full px-4 flex items-center hover:border-b-4 hover:border-[#f2c210] transition-colors">
-                <Link to="/products?category=Watches">Watches</Link>
-                <MegaMenu categories={watchesCategories} />
+              <li className="group cursor-pointer h-full px-3.5 flex items-center border-b-4 border-transparent hover:border-[#f2c210] transition-colors">
+                <Link to="/products?category=Body%20%26%20Bath">Body</Link>
               </li>
               
-              <li className="group cursor-pointer h-full px-4 flex items-center hover:border-b-4 hover:border-[#0db7af] transition-colors">
-                <Link to="/products?category=Makeup">Beauty</Link>
-                <MegaMenu categories={beautyCategories} />
+              <li className="group cursor-pointer h-full px-3.5 flex items-center border-b-4 border-transparent hover:border-[#0db7af] transition-colors">
+                <Link to="/products?category=Men%27s%20Grooming">Men</Link>
               </li>
 
-              <li className="group cursor-pointer h-full px-4 flex items-center hover:border-b-4 hover:border-[#ff3f6c] transition-colors relative">
-                <Link to="/products">Studio</Link>
-                <span className="absolute top-[22px] right-[-8px] text-[#ff3f6c] text-[9px] uppercase font-black">New</span>
+              <li className="group cursor-pointer h-full px-3.5 flex items-center border-b-4 border-transparent hover:border-[#ff3f6c] transition-colors">
+                <Link to="/products?category=Fragrance%20%26%20Deodorant">Fragrance</Link>
+              </li>
+
+              <li className="group cursor-pointer h-full px-3.5 flex items-center border-b-4 border-transparent hover:border-[#ff3f6c] transition-colors relative">
+                <Link to="/products">All Beauty</Link>
+                <span className="absolute top-[22px] right-[-2px] text-[#ff3f6c] text-[9px] uppercase font-black tracking-tighter">NEW</span>
               </li>
             </ul>
           </nav>
@@ -162,7 +138,7 @@ const Header = () => {
               </svg>
               <input 
                 type="text" 
-                placeholder="Search for products, brands and more"
+                placeholder="Search cosmetics, skincare and brands"
                 className="bg-transparent w-full outline-none text-[13px] text-[#282c3f] placeholder-gray-500 font-medium"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -282,7 +258,7 @@ const Header = () => {
                 </div>
                 <div>
                   <p className="font-bold text-sm">{user ? user.name : 'Welcome Guest'}</p>
-                  <p className="text-[11px] text-gray-300">{user ? user.email : 'Explore fashion deals'}</p>
+                  <p className="text-[11px] text-gray-300">{user ? user.email : 'Explore beauty deals'}</p>
                 </div>
               </div>
               <button onClick={() => setIsMobileMenuOpen(false)} className="p-1 text-gray-300 hover:text-white">
@@ -296,12 +272,21 @@ const Header = () => {
             <div className="flex-1 overflow-y-auto p-4 space-y-4 text-[#282c3f]">
               <div className="space-y-1 border-b border-gray-100 pb-3">
                 <p className="text-[11px] font-black text-[#ff3f6c] uppercase tracking-wider mb-2">Shop Categories</p>
-                <Link to="/products" onClick={() => setIsMobileMenuOpen(false)} className="block py-2 text-sm font-bold hover:text-[#ff3f6c]">👕 Men Collection</Link>
-                <Link to="/products" onClick={() => setIsMobileMenuOpen(false)} className="block py-2 text-sm font-bold hover:text-[#ff3f6c]">👗 Women Collection</Link>
-                <Link to="/products" onClick={() => setIsMobileMenuOpen(false)} className="block py-2 text-sm font-bold hover:text-[#ff3f6c]">🧒 Kids Fashion</Link>
-                <Link to="/products?category=Watches" onClick={() => setIsMobileMenuOpen(false)} className="block py-2 text-sm font-bold hover:text-[#ff3f6c]">⌚ Watches & Smartwatches</Link>
-                <Link to="/products?category=Sneakers" onClick={() => setIsMobileMenuOpen(false)} className="block py-2 text-sm font-bold hover:text-[#ff3f6c]">👟 Sneakers & Footwear</Link>
-                <Link to="/products?category=Beauty" onClick={() => setIsMobileMenuOpen(false)} className="block py-2 text-sm font-bold hover:text-[#ff3f6c]">💄 Beauty & Makeup</Link>
+                {cosmeticsCategories.map((group) => (
+                  <div key={group.title} className="pt-2">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-[#94969f]">{group.title}</p>
+                    {group.items.map((item) => (
+                      <Link
+                        key={item}
+                        to={`/products?category=${encodeURIComponent(item)}`}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="block py-1.5 text-sm font-semibold hover:text-[#ff3f6c]"
+                      >
+                        {item}
+                      </Link>
+                    ))}
+                  </div>
+                ))}
               </div>
 
               <div className="space-y-1">

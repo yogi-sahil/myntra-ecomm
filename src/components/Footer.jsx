@@ -13,12 +13,12 @@ const Footer = () => {
           <div className="flex flex-col">
             <h4 className="text-[11px] sm:text-[12px] font-black text-[#282c3f] mb-4 uppercase tracking-wider">Online Shopping</h4>
             <ul className="text-[13px] text-[#696b79] space-y-2 font-medium">
-              <li><Link to="/products?category=Men T-Shirts" className="hover:text-[#ff3f6c] transition-colors">Men</Link></li>
-              <li><Link to="/products?category=Women Sarees" className="hover:text-[#ff3f6c] transition-colors">Women</Link></li>
-              <li><Link to="/products?category=Kids Clothing" className="hover:text-[#ff3f6c] transition-colors">Kids</Link></li>
-              <li><Link to="/products?category=Watches" className="hover:text-[#ff3f6c] transition-colors">Watches</Link></li>
-              <li><Link to="/products?category=Beauty" className="hover:text-[#ff3f6c] transition-colors">Beauty</Link></li>
-              <li><Link to="/products" className="hover:text-[#ff3f6c] transition-colors">Gift Cards</Link></li>
+              <li><Link to="/products?category=Face Wash" className="hover:text-[#ff3f6c] transition-colors">Face Wash</Link></li>
+              <li><Link to="/products?category=Serums %26 Treatments" className="hover:text-[#ff3f6c] transition-colors">Serums</Link></li>
+              <li><Link to="/products?category=Face Makeup" className="hover:text-[#ff3f6c] transition-colors">Makeup</Link></li>
+              <li><Link to="/products?category=Hair Care" className="hover:text-[#ff3f6c] transition-colors">Hair Care</Link></li>
+              <li><Link to="/products?category=Men%27s Grooming" className="hover:text-[#ff3f6c] transition-colors">Men's Grooming</Link></li>
+              <li><Link to="/products" className="hover:text-[#ff3f6c] transition-colors">All Beauty</Link></li>
             </ul>
           </div>
 
@@ -80,7 +80,7 @@ const Footer = () => {
           <div className="flex items-center gap-3">
             <img src="https://constant.myntassets.com/web/assets/img/6c3306ca-1efa-4a27-8769-3b69d16948741574602902452-original.png" alt="100% Original" className="w-10 h-8 object-contain shrink-0" />
             <p className="text-[12px] sm:text-[13px] text-[#696b79]">
-              <strong className="text-[#282c3f] font-bold">100% ORIGINAL</strong> guarantee for all fashion items
+              <strong className="text-[#282c3f] font-bold">100% ORIGINAL</strong> beauty and personal-care products
             </p>
           </div>
           <div className="flex items-center gap-3">

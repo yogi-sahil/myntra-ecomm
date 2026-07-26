@@ -1,35 +1,63 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { API_BASE_URL } from '../config';
 
 const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-  const [token, setToken] = useState(() => localStorage.getItem('token'));
   const [user, setUser] = useState(() => {
     try {
-      const u = localStorage.getItem('user');
-      return u ? JSON.parse(u) : null;
-    } catch (e) {
+      const savedUser = localStorage.getItem('user');
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch {
       return null;
     }
   });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const login = (userData, jwtToken) => {
+  useEffect(() => {
+    let active = true;
+    fetch(`${API_BASE_URL}/auth/me`)
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Session unavailable');
+        return response.json();
+      })
+      .then(({ user: currentUser }) => {
+        if (!active) return;
+        setUser(currentUser);
+        localStorage.setItem('user', JSON.stringify(currentUser));
+      })
+      .catch(() => {
+        if (!active) return;
+        setUser(null);
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
+  }, []);
+
+  const login = (userData) => {
     setUser(userData);
-    setToken(jwtToken);
     localStorage.setItem('user', JSON.stringify(userData));
-    localStorage.setItem('token', jwtToken);
+    localStorage.removeItem('token');
   };
 
   const logout = () => {
+    fetch(`${API_BASE_URL}/auth/logout`, { method: 'POST' }).catch(() => {});
     setUser(null);
-    setToken(null);
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     localStorage.removeItem('myntra_cart');
   };
+
+  // Existing consumers use this only as an "authenticated" signal. The real
+  // credential is an HttpOnly cookie and is never exposed to JavaScript.
+  const token = user ? 'cookie-session' : null;
 
   return (
     <AuthContext.Provider value={{ user, token, login, logout, loading }}>

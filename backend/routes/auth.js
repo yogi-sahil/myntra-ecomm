@@ -1,105 +1,134 @@
 const express = require('express');
-const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../config/db');
+const { protect } = require('../middleware/authMiddleware');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_myntra_2026';
+const router = express.Router();
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MOBILE_PATTERN = /^\+?[0-9]{10,15}$/;
 
-// @route   POST /api/auth/register
-// @desc    Register a new user
+const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
+
+const validateRegistration = ({ name, email, mobile, password }) => {
+  if (String(name || '').trim().length < 2 || String(name).trim().length > 100) {
+    return 'Name must contain 2 to 100 characters';
+  }
+  if (!EMAIL_PATTERN.test(normalizeEmail(email))) return 'Enter a valid email address';
+  if (!MOBILE_PATTERN.test(String(mobile || '').trim())) return 'Enter a valid mobile number';
+  if (typeof password !== 'string' || password.length < 8 || password.length > 128) {
+    return 'Password must contain 8 to 128 characters';
+  }
+  return null;
+};
+
+const signToken = (user, expiresIn) => jwt.sign(
+  { id: user.id, role: user.role },
+  process.env.JWT_SECRET,
+  {
+    algorithm: 'HS256',
+    expiresIn,
+    issuer: 'myntra-api',
+    audience: 'myntra-web',
+  }
+);
+
+const setSessionCookie = (res, token, maxAgeSeconds) => {
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  res.setHeader(
+    'Set-Cookie',
+    `myntra_session=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Strict; Max-Age=${maxAgeSeconds}${secure}`
+  );
+};
+
+const publicUser = (user) => ({
+  id: user.id,
+  name: user.name,
+  email: user.email,
+  mobile: user.mobile,
+  role: user.role === 'user' ? 'customer' : user.role,
+});
+
 router.post('/register', async (req, res) => {
-  const { name, email, mobile, password } = req.body;
+  const validationError = validateRegistration(req.body);
+  if (validationError) return res.status(400).json({ message: validationError });
+
+  const name = req.body.name.trim();
+  const email = normalizeEmail(req.body.email);
+  const mobile = req.body.mobile.trim();
   try {
-    // Check if user exists
-    const [existingUsers] = await db.query('SELECT * FROM users WHERE email = ? OR mobile = ?', [email, mobile]);
+    const [existingUsers] = await db.query(
+      'SELECT id FROM users WHERE email = ? OR mobile = ?',
+      [email, mobile]
+    );
     if (existingUsers.length > 0) {
-      return res.status(400).json({ message: 'User with this email or mobile already exists' });
+      return res.status(409).json({ message: 'An account with this email or mobile already exists' });
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Insert user
+    const hashedPassword = await bcrypt.hash(req.body.password, 12);
     const [result] = await db.query(
       'INSERT INTO users (name, email, mobile, password, role) VALUES (?, ?, ?, ?, ?)',
       [name, email, mobile, hashedPassword, 'user']
     );
 
-    // Create JWT
-    const token = jwt.sign({ id: result.insertId, role: 'user' }, JWT_SECRET, { expiresIn: '7d' });
-
-    res.status(201).json({
-      message: 'User registered successfully',
-      token,
-      user: { id: result.insertId, name, email, mobile, role: 'customer' }
-    });
+    const user = { id: result.insertId, name, email, mobile, role: 'user' };
+    setSessionCookie(res, signToken(user, '7d'), 7 * 24 * 60 * 60);
+    return res.status(201).json({ message: 'Account created successfully', user: publicUser(user) });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error during registration' });
+    console.error('Registration failed:', error.message);
+    return res.status(500).json({ message: 'Registration failed' });
   }
 });
 
-// @route   POST /api/auth/login
-// @desc    Login for standard users
-router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-  try {
-    // Check user
-    const [users] = await db.query("SELECT * FROM users WHERE email = ? AND role IN ('user', 'customer')", [email]);
-    if (users.length === 0) {
-      return res.status(401).json({ message: 'Invalid credentials' });
-    }
+const loginForRole = (requiredRole, expiresIn, maxAgeSeconds) => async (req, res) => {
+  const email = normalizeEmail(req.body.email);
+  const password = req.body.password;
+  if (!EMAIL_PATTERN.test(email) || typeof password !== 'string' || password.length > 128) {
+    return res.status(400).json({ message: 'Enter valid credentials' });
+  }
 
+  try {
+    const roleQuery = requiredRole === 'admin'
+      ? 'role = ?'
+      : "role IN ('user', 'customer')";
+    const params = requiredRole === 'admin' ? [email, 'admin'] : [email];
+    const [users] = await db.query(`SELECT * FROM users WHERE email = ? AND ${roleQuery}`, params);
     const user = users[0];
+    const isMatch = user ? await bcrypt.compare(password, user.password || '') : false;
+    if (!isMatch) return res.status(401).json({ message: 'Invalid credentials' });
 
-    // Check password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid credentials' });
-    }
-
-    // Create JWT
-    const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
-
-    res.json({
-      token,
-      user: { id: user.id, name: user.name, email: user.email, mobile: user.mobile, role: 'customer' }
-    });
+    setSessionCookie(res, signToken(user, expiresIn), maxAgeSeconds);
+    return res.json({ user: publicUser(user) });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error during login' });
+    console.error('Login failed:', error.message);
+    return res.status(500).json({ message: 'Login failed' });
+  }
+};
+
+router.post('/login', loginForRole('customer', '7d', 7 * 24 * 60 * 60));
+router.post('/admin-login', loginForRole('admin', '1d', 24 * 60 * 60));
+
+router.get('/me', protect, async (req, res) => {
+  try {
+    const [users] = await db.query(
+      'SELECT id, name, email, mobile, role FROM users WHERE id = ?',
+      [req.user.id]
+    );
+    if (!users.length) return res.status(401).json({ message: 'Account no longer exists' });
+    return res.json({ user: publicUser(users[0]) });
+  } catch (error) {
+    console.error('Session lookup failed:', error.message);
+    return res.status(500).json({ message: 'Could not validate session' });
   }
 });
 
-// @route   POST /api/auth/admin-login
-// @desc    Login specifically for admin panel
-router.post('/admin-login', async (req, res) => {
-  const { email, password } = req.body;
-  try {
-    const [users] = await db.query('SELECT * FROM users WHERE email = ? AND role = ?', [email, 'admin']);
-    if (users.length === 0) {
-      return res.status(401).json({ message: 'Invalid admin credentials' });
-    }
-
-    const admin = users[0];
-
-    const isMatch = await bcrypt.compare(password, admin.password);
-    if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid admin credentials' });
-    }
-
-    const token = jwt.sign({ id: admin.id, role: admin.role }, JWT_SECRET, { expiresIn: '1d' });
-
-    res.json({
-      token,
-      user: { id: admin.id, name: admin.name, email: admin.email, role: admin.role }
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error during admin login' });
-  }
+router.post('/logout', (_req, res) => {
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  res.setHeader(
+    'Set-Cookie',
+    `myntra_session=; HttpOnly; Path=/; SameSite=Strict; Max-Age=0${secure}`
+  );
+  return res.json({ message: 'Logged out' });
 });
 
 module.exports = router;

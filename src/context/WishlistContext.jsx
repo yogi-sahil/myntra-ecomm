@@ -1,4 +1,5 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { API_BASE_URL } from '../config';
 
@@ -13,19 +14,9 @@ export const WishlistProvider = ({ children }) => {
   const { user, token } = useAuth();
   const { showToast } = useToast();
 
-  useEffect(() => {
-    if (user && token) {
-      fetchWishlist();
-    } else {
-      setWishlistItems([]);
-    }
-  }, [user, token]);
-
-  const fetchWishlist = async () => {
+  const fetchWishlist = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/wishlist`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await fetch(`${API_BASE_URL}/wishlist`);
       if (response.ok) {
         const data = await response.json();
         setWishlistItems(data);
@@ -33,7 +24,12 @@ export const WishlistProvider = ({ children }) => {
     } catch (err) {
       console.error('Failed to fetch wishlist:', err);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (user && token) fetchWishlist();
+    else setWishlistItems([]);
+  }, [user, token, fetchWishlist]);
 
   const addToWishlist = async (product) => {
     if (!token) {
@@ -54,9 +50,8 @@ export const WishlistProvider = ({ children }) => {
     try {
       await fetch(`${API_BASE_URL}/wishlist`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}` 
         },
         body: JSON.stringify({ productId: product.id })
       });
@@ -74,7 +69,6 @@ export const WishlistProvider = ({ children }) => {
     try {
       await fetch(`${API_BASE_URL}/wishlist/${productId}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
       });
     } catch (err) {
       console.error('Failed to remove from wishlist on server', err);
@@ -89,12 +83,13 @@ export const WishlistProvider = ({ children }) => {
   const totalWishlistItems = wishlistItems.length;
 
   return (
-    <WishlistContext.Provider value={{ 
-      wishlistItems, 
-      addToWishlist, 
-      removeFromWishlist, 
+    <WishlistContext.Provider value={{
+      wishlist: wishlistItems || [],
+      wishlistItems: wishlistItems || [],
+      addToWishlist,
+      removeFromWishlist,
       isInWishlist,
-      totalWishlistItems 
+      totalWishlistItems
     }}>
       {children}
     </WishlistContext.Provider>
