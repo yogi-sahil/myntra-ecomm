@@ -39,7 +39,7 @@ router.get('/', async (req, res) => {
   try {
     const { search, category, brand, sort } = req.query;
     
-    let query = 'SELECT * FROM products WHERE 1=1';
+    let query = "SELECT * FROM products WHERE category <> 'Archived'";
     const queryParams = [];
 
     if (search) {
@@ -83,7 +83,10 @@ router.get('/', async (req, res) => {
 // @desc    Get product by ID
 router.get('/:id', async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM products WHERE id = ?', [req.params.id]);
+    const [rows] = await db.query(
+      "SELECT * FROM products WHERE id = ? AND category <> 'Archived'",
+      [req.params.id],
+    );
     if (rows.length === 0) {
       return res.status(404).json({ message: 'Product not found' });
     }

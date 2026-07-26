@@ -7,7 +7,9 @@ const { protect, adminOnly } = require('../middleware/authMiddleware');
 // @desc    Get all categories (Public)
 router.get('/', async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM categories ORDER BY id ASC');
+    const [rows] = await db.query(
+      "SELECT * FROM categories WHERE status = 'Active' ORDER BY id ASC",
+    );
     res.json(rows);
   } catch (error) {
     console.error(error);

@@ -66,8 +66,10 @@ secret.
 
 - Set `NODE_ENV=production`.
 - Set `DB_HOST`, `DB_USER`, `DB_PASSWORD`, and `DB_NAME` to the production
-  MySQL credentials. `VITE_API_URL` alone does not configure the backend
-  database connection.
+  MySQL credentials. For a MySQL server on the same Hostinger application,
+  use `DB_HOST=127.0.0.1` instead of `localhost` so Node does not resolve the
+  connection to IPv6 `::1`. `VITE_API_URL` alone does not configure the
+  backend database connection.
 - Set a unique `JWT_SECRET` with at least 32 random characters.
 - Rotate any Razorpay credential that has ever appeared in Git history, then set `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET`.
 - Set `TRUST_PROXY=true` only when exactly one trusted reverse proxy is in front of Node.
@@ -79,22 +81,16 @@ Payment credentials are intentionally unavailable in the admin UI and are never 
 
 ## Production database and catalog seed
 
-A GitHub/Hostinger deployment updates application files only. It does not copy
-the local MySQL database and it does not run the catalog seed automatically.
-After the production database variables are configured, run these commands once
-from the production application terminal:
+A versioned snapshot of the verified local cosmetics catalog ships with the
+application. On the first production startup for that catalog version, the
+server automatically applies the required catalog columns and syncs exactly 20
+categories and 120 products before accepting traffic.
 
-```bash
-npm --prefix backend install
-npm --prefix backend run migrate:secure
-npm --prefix backend run catalog:seed
-```
-
-The catalog seed is an idempotent upsert for the managed cosmetics catalog. It
-creates or updates 20 categories and 120 products while preserving product IDs
-and existing orders. It deliberately remains a manual deployment step because
-it verifies live product pages and images; attaching it to every server restart
-would make application availability depend on a third-party website.
+Legacy products that are not referenced by orders are deleted. Products that
+are referenced by old orders are retained only as hidden `Archived` rows so
+order history is not destroyed. Legacy cart and wishlist references are
+removed. A successful catalog version is recorded, so later restarts skip the
+sync and do not depend on an external product website.
 
 For Hostinger, deploy the repository as a server-side Node application using
 the repository root, `npm run build` as the build command, and

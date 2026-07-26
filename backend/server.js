@@ -20,6 +20,7 @@ const { validateEnvironment } = require('./config/env');
 const { isOriginAllowed, parseAllowedOrigins } = require('./config/cors');
 const { createRateLimit } = require('./middleware/rateLimit');
 const { authAttemptsOnly } = require('./middleware/authAttemptLimiter');
+const { ensureProductionCatalog } = require('./seed_cosmetics_catalog');
 
 validateEnvironment();
 
@@ -196,7 +197,17 @@ process.on('unhandledRejection', (err) => {
   process.exit(1);
 });
 
-// Start Server
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
+// Start only after the deterministic production catalog has been applied.
+// A failed database bootstrap should fail the deployment instead of serving
+// a storefront whose catalog endpoints return 500 errors.
+async function startServer() {
+  await ensureProductionCatalog();
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
+  });
+}
+
+startServer().catch((error) => {
+  console.error(`Server startup failed: ${error.message}`);
+  process.exit(1);
 });
