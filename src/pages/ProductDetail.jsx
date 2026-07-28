@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -19,6 +19,37 @@ const ProductDetail = () => {
   const [selectedSize, setSelectedSize] = useState('');
   const [error, setError] = useState(false);
   const [activeImgIdx, setActiveImgIdx] = useState(0);
+  const [slideDir, setSlideDir] = useState('left');
+
+  // Touch swipe tracking refs for mobile (must be above early returns)
+  const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
+  const imgLenRef = useRef(1); // tracks productImages.length for use in callbacks
+
+  const goNext = useCallback(() => {
+    setActiveImgIdx((prev) => (prev + 1) % imgLenRef.current);
+    setSlideDir('left');
+  }, []);
+
+  const goPrev = useCallback(() => {
+    setActiveImgIdx((prev) => (prev - 1 + imgLenRef.current) % imgLenRef.current);
+    setSlideDir('right');
+  }, []);
+
+  const handleTouchStart = useCallback((e) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  }, []);
+
+  const handleTouchEnd = useCallback((e) => {
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = Math.abs(e.changedTouches[0].clientY - touchStartY.current);
+    if (Math.abs(dx) > 40 && dy < 60) {
+      if (dx < 0) goNext(); else goPrev();
+    }
+    touchStartX.current = null;
+  }, [goNext, goPrev]);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -99,6 +130,9 @@ const ProductDetail = () => {
     product.image_url
   ].filter(Boolean))].slice(0, 4);
 
+  // Keep ref in sync so goNext/goPrev always see the right count
+  imgLenRef.current = productImages.length || 1;
+
   const handleAddToCart = () => {
     const sizeToUse = selectedSize || (isNonApparel ? (derivedSizes[0] || 'Standard') : '');
     if (!sizeToUse) {
@@ -117,46 +151,157 @@ const ProductDetail = () => {
       <div className="pt-20 sm:pt-24 md:pt-28 pb-20 md:pb-12 w-full max-w-[1200px] mx-auto px-4 flex flex-col md:flex-row gap-8">
         {/* Left: Image Gallery */}
         <div className="w-full md:w-1/2">
-          {/* Desktop 2-column Image Grid */}
-          <div className="hidden md:grid grid-cols-2 gap-3">
-            {productImages.map((imgUrl, idx) => (
-              <div key={idx} className="overflow-hidden rounded-[4px] bg-[#f5f5f6] border border-[#eaeaec] group">
+
+          {/* ── DESKTOP: Left thumbnail strip + Large main image ── */}
+          <div className="hidden md:flex gap-3 sticky top-28">
+
+            {/* Thumbnail Strip (left column) */}
+            <div className="flex flex-col gap-2 w-[72px] flex-shrink-0">
+              {productImages.map((imgUrl, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => { setSlideDir(idx > activeImgIdx ? 'left' : 'right'); setActiveImgIdx(idx); }}
+                  className={`w-full aspect-[3/4] rounded-[4px] overflow-hidden border-2 transition-all duration-200 flex-shrink-0
+                    ${activeImgIdx === idx
+                      ? 'border-[#ff3f6c] shadow-md scale-[1.04]'
+                      : 'border-[#eaeaec] opacity-55 hover:opacity-100 hover:border-[#282c3f]'
+                    }`}
+                >
+                  <img src={imgUrl} alt={`View ${idx + 1}`} className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+
+            {/* Main Image Viewer */}
+            <div className="flex-1 relative rounded-[4px] overflow-hidden bg-[#f5f5f6] border border-[#eaeaec] group" style={{ minHeight: '520px' }}>
+              {/* Slide Wrapper */}
+              <div
+                key={activeImgIdx}
+                className="w-full h-full"
+                style={{
+                  animation: slideDir === 'left'
+                    ? 'slideInFromRight 0.32s cubic-bezier(0.25,0.46,0.45,0.94)'
+                    : 'slideInFromLeft 0.32s cubic-bezier(0.25,0.46,0.45,0.94)',
+                }}
+              >
                 <img
-                  src={imgUrl}
-                  alt={`${product.title} view ${idx + 1}`}
-                  className="w-full h-[360px] object-cover group-hover:scale-105 transition-transform duration-300"
+                  src={productImages[activeImgIdx]}
+                  alt={`${product.title} view ${activeImgIdx + 1}`}
+                  className="w-full h-full object-cover"
+                  style={{ minHeight: '520px' }}
                 />
               </div>
-            ))}
+
+              {/* Prev Arrow */}
+              {productImages.length > 1 && (
+                <button
+                  onClick={goPrev}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-white hover:scale-110 z-10"
+                  aria-label="Previous image"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#282c3f]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+              )}
+
+              {/* Next Arrow */}
+              {productImages.length > 1 && (
+                <button
+                  onClick={goNext}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-white hover:scale-110 z-10"
+                  aria-label="Next image"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#282c3f]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              )}
+
+              {/* Image counter pill */}
+              <div className="absolute bottom-3 right-3 bg-black/60 text-white text-[11px] font-bold px-2.5 py-1 rounded-full backdrop-blur-sm">
+                {activeImgIdx + 1} / {productImages.length}
+              </div>
+            </div>
           </div>
 
-          {/* Mobile Swipe / Carousel & Thumbnail Picker */}
+          {/* ── MOBILE: Swipeable Carousel + Thumbnails ── */}
           <div className="md:hidden relative w-full">
-            <div className="relative overflow-hidden rounded-lg bg-[#f5f5f6] aspect-[3/4]">
-              <img
-                src={productImages[activeImgIdx]}
-                alt={`${product.title} pose ${activeImgIdx + 1}`}
-                className="w-full h-full object-cover transition-all duration-300"
-              />
-              {/* Image Counter Badge e.g. 1 / 4 */}
-              <div className="absolute bottom-3 right-3 bg-black/70 text-white text-[11px] font-bold px-2.5 py-1 rounded-full backdrop-blur-sm whitespace-nowrap shrink-0">
-                {activeImgIdx + 1} / {productImages.length}
+            {/* Main swipeable image */}
+            <div
+              className="relative overflow-hidden rounded-lg bg-[#f5f5f6] aspect-[3/4]"
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+            >
+              <div
+                key={activeImgIdx}
+                className="w-full h-full"
+                style={{
+                  animation: slideDir === 'left'
+                    ? 'slideInFromRight 0.28s cubic-bezier(0.25,0.46,0.45,0.94)'
+                    : 'slideInFromLeft 0.28s cubic-bezier(0.25,0.46,0.45,0.94)',
+                }}
+              >
+                <img
+                  src={productImages[activeImgIdx]}
+                  alt={`${product.title} pose ${activeImgIdx + 1}`}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+
+              {/* Mobile Prev Arrow */}
+              {productImages.length > 1 && (
+                <button
+                  onClick={goPrev}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/85 shadow flex items-center justify-center z-10"
+                  aria-label="Previous image"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#282c3f]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+              )}
+
+              {/* Mobile Next Arrow */}
+              {productImages.length > 1 && (
+                <button
+                  onClick={goNext}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/85 shadow flex items-center justify-center z-10"
+                  aria-label="Next image"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#282c3f]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              )}
+
+              {/* Dot Indicators */}
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+                {productImages.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => { setSlideDir(idx > activeImgIdx ? 'left' : 'right'); setActiveImgIdx(idx); }}
+                    className={`rounded-full transition-all duration-200 ${activeImgIdx === idx ? 'w-5 h-2 bg-[#ff3f6c]' : 'w-2 h-2 bg-white/70'}`}
+                  />
+                ))}
               </div>
             </div>
 
             {/* Thumbnail Strip underneath */}
-            <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
+            <div className="flex gap-2 mt-3 overflow-x-auto pb-1 scrollbar-hide">
               {productImages.map((imgUrl, idx) => (
                 <button
                   key={idx}
-                  onClick={() => setActiveImgIdx(idx)}
-                  className={`w-16 h-20 flex-shrink-0 rounded-md overflow-hidden border-2 transition-all ${activeImgIdx === idx ? 'border-[#ff3f6c] shadow-md scale-105' : 'border-transparent opacity-60'}`}
+                  onClick={() => { setSlideDir(idx > activeImgIdx ? 'left' : 'right'); setActiveImgIdx(idx); }}
+                  className={`w-16 h-20 flex-shrink-0 rounded-md overflow-hidden border-2 transition-all duration-200
+                    ${activeImgIdx === idx ? 'border-[#ff3f6c] shadow-md scale-105' : 'border-transparent opacity-60'}`}
                 >
                   <img src={imgUrl} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>
           </div>
+
         </div>
 
       {/* Right: Product Info */}
