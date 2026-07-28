@@ -8,6 +8,9 @@ const apiProxyTarget = process.env.VITE_BACKEND_URL || 'http://127.0.0.1:8999'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
+    host: 'localhost',
+    port: 5175,
+    strictPort: true,
     proxy: {
       '/api': {
         target: apiProxyTarget,

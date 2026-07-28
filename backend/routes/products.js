@@ -100,15 +100,39 @@ router.get('/:id', async (req, res) => {
 // @route   POST /api/admin/products
 // @desc    Add a new product (Admin)
 router.post('/', protect, adminOnly, async (req, res) => {
-  const { brand, title, price, original_price, discount, image_url, description, category, stock_quantity = 50, sku, available_sizes = 'S,M,L,XL' } = req.body;
+  const {
+    brand,
+    title,
+    price,
+    original_price,
+    discount,
+    image_url,
+    images,
+    description,
+    category,
+    stock_quantity = 50,
+    sku,
+    available_sizes = 'S,M,L,XL',
+    seller,
+    rating,
+  } = req.body;
+
   try {
     const validationError = validateProduct(req.body);
     if (validationError) return res.status(400).json({ message: validationError });
-    
+
     const finalSku = sku ? sku.trim() : `SKU-${Date.now().toString().slice(-6)}`;
+    const imageList = Array.isArray(images) && images.length > 0
+      ? images.filter((img) => typeof img === 'string' && img.trim())
+      : (image_url ? [image_url] : []);
+    const imagesJson = JSON.stringify(imageList.length ? imageList : [image_url]);
+    const sellerToSave = seller ? seller.trim() : (brand || '');
+    const ratingToSave = rating !== undefined && rating !== '' ? Number(rating) : 4.2;
+
     const [result] = await db.query(
-      'INSERT INTO products (brand, title, price, original_price, discount, image_url, description, category, stock_quantity, sku, available_sizes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [brand, title, price, original_price, discount, image_url, description, category, Number(stock_quantity), finalSku, available_sizes]
+      `INSERT INTO products (brand, title, price, original_price, discount, image_url, description, category, stock_quantity, sku, available_sizes, seller, rating, images)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [brand, title, price, original_price, discount, image_url, description, category, Number(stock_quantity), finalSku, available_sizes, sellerToSave, ratingToSave, imagesJson],
     );
     res.status(201).json({ message: 'Product added successfully', productId: result.insertId, sku: finalSku });
   } catch (error) {
@@ -144,13 +168,39 @@ router.post('/bulk-delete', protect, adminOnly, async (req, res) => {
 // @route   PUT /api/admin/products/:id
 // @desc    Update a product (Admin)
 router.put('/:id', protect, adminOnly, async (req, res) => {
-  const { brand, title, price, original_price, discount, image_url, description, category, stock_quantity = 50, sku, available_sizes = 'S,M,L,XL' } = req.body;
+  const {
+    brand,
+    title,
+    price,
+    original_price,
+    discount,
+    image_url,
+    images,
+    description,
+    category,
+    stock_quantity = 50,
+    sku,
+    available_sizes = 'S,M,L,XL',
+    seller,
+    rating,
+  } = req.body;
+
   try {
     const validationError = validateProduct(req.body);
     if (validationError) return res.status(400).json({ message: validationError });
+
+    const imageList = Array.isArray(images) && images.length > 0
+      ? images.filter((img) => typeof img === 'string' && img.trim())
+      : (image_url ? [image_url] : []);
+    const imagesJson = JSON.stringify(imageList.length ? imageList : [image_url]);
+    const sellerToSave = seller ? seller.trim() : (brand || '');
+    const ratingToSave = rating !== undefined && rating !== '' ? Number(rating) : 4.2;
+
     const [result] = await db.query(
-      'UPDATE products SET brand = ?, title = ?, price = ?, original_price = ?, discount = ?, image_url = ?, description = ?, category = ?, stock_quantity = ?, sku = ?, available_sizes = ? WHERE id = ?',
-      [brand, title, price, original_price, discount, image_url, description, category, Number(stock_quantity), sku, available_sizes, req.params.id]
+      `UPDATE products
+       SET brand = ?, title = ?, price = ?, original_price = ?, discount = ?, image_url = ?, description = ?, category = ?, stock_quantity = ?, sku = ?, available_sizes = ?, seller = ?, rating = ?, images = ?
+       WHERE id = ?`,
+      [brand, title, price, original_price, discount, image_url, description, category, Number(stock_quantity), sku, available_sizes, sellerToSave, ratingToSave, imagesJson, req.params.id],
     );
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: 'Product not found' });
