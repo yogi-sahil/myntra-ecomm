@@ -1,28 +1,39 @@
 require('dotenv').config();
 const db = require('./config/db');
-const catalogSnapshot = require('./catalog/cosmeticsCatalogSnapshot.json');
+const catalogSnapshot = require('./catalog/currentCatalog');
 
 const { categories, products, version: catalogVersion } = catalogSnapshot;
 const productImages = (product) => product.images;
+const expectedCategoryCount = (category) => (
+  ['Fragrance & Deodorant', 'Face Masks & Exfoliators'].includes(category) ? 11 : 6
+);
 
 const validateCatalog = (products) => {
   const categoryNames = new Set(categories.map((category) => category.name));
+  const productSkus = new Set();
   if (categories.length !== 20) throw new Error('Catalog must contain exactly 20 focused categories');
-  if (products.length !== 120) throw new Error('Catalog must contain exactly 120 products');
+  if (products.length !== 130) throw new Error('Catalog must contain exactly 130 products');
 
   for (const product of products) {
     const images = productImages(product);
+    if (!product.sku || productSkus.has(product.sku)) throw new Error(`${product.sku || 'Unknown product'}: duplicate or missing SKU`);
+    productSkus.add(product.sku);
     if (!categoryNames.has(product.category)) throw new Error(`${product.sku}: invalid category`);
     if (product.price < 199 || product.price > 499) throw new Error(`${product.sku}: price must be between ₹199 and ₹499`);
     if (product.originalPrice <= product.price) throw new Error(`${product.sku}: MRP must be higher than selling price`);
     if (product.discount < 10 || product.discount > 90) throw new Error(`${product.sku}: invalid discount`);
     if (!Array.isArray(images) || images.length < 3 || images.length > 4) throw new Error(`${product.sku}: requires 3-4 verified images`);
     if (!Array.isArray(product.reviews) || product.reviews.length < 4 || product.reviews.length > 5) throw new Error(`${product.sku}: requires 4-5 reviews`);
+    if (!Number.isInteger(product.stockQuantity) || product.stockQuantity < 1) throw new Error(`${product.sku}: stock is required`);
+    if (!product.seller?.trim()) throw new Error(`${product.sku}: seller is required`);
   }
 
   for (const category of categories) {
     const count = products.filter((product) => product.category === category.name).length;
-    if (count !== 6) throw new Error(`${category.name}: expected 6 products, found ${count}`);
+    const expected = expectedCategoryCount(category.name);
+    if (count !== expected) {
+      throw new Error(`${category.name}: expected ${expected} products, found ${count}`);
+    }
   }
 };
 
@@ -250,7 +261,7 @@ async function seedCosmeticsCatalog({ closePool = true } = {}) {
       categorySlugs,
     );
     if (
-      Number(catalogState.productCount) !== 120
+      Number(catalogState.productCount) !== 130
       || Number(catalogState.categoryCount) !== 20
       || Number(categoryState.categoryCount) !== 20
       || Number(catalogState.minPrice) < 199
