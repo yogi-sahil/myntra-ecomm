@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
+const { CUSTOMER_ORDER_VISIBILITY_CLAUSE } = require('../services/customerOrderVisibility');
 
 // @route   GET /api/admin/orders
 // @desc    Get all orders (Admin)
@@ -49,6 +50,7 @@ router.get('/my-orders', protect, async (req, res) => {
       FROM orders o
       LEFT JOIN order_items oi ON o.id = oi.order_id
       WHERE o.user_id = ?
+        AND ${CUSTOMER_ORDER_VISIBILITY_CLAUSE}
       GROUP BY o.id
       ORDER BY o.created_at DESC
     `, [userId]);

@@ -253,12 +253,18 @@ const Profile = () => {
 
           {activeTab === 'orders' && (
             <div className="flex flex-col gap-4">
-              <h2 className="text-[18px] font-bold text-[#282c3f] mb-2">My Orders</h2>
+              <div className="mb-2">
+                <h2 className="text-[18px] font-bold text-[#282c3f]">My Orders</h2>
+                <p className="mt-1 text-[12px] text-[#7e818c]">
+                  For your privacy, order history is visible here for 3 days after purchase.
+                </p>
+              </div>
               {loading ? (
                 <p className="text-gray-500 font-bold py-8 text-center">Loading orders...</p>
               ) : orders.length === 0 ? (
                 <div className="border border-[#eaeaec] p-12 text-center bg-white flex flex-col items-center justify-center rounded-sm">
-                  <p className="text-[16px] text-[#535766] mb-4 font-semibold">You haven't placed any orders yet.</p>
+                  <p className="text-[16px] text-[#535766] mb-1 font-semibold">No recent orders are visible.</p>
+                  <p className="mb-4 text-[12px] text-[#7e818c]">Customer order records automatically disappear after 3 days.</p>
                   <Link to="/products" className="bg-[#ff3f6c] text-white px-8 py-3 rounded-sm font-bold text-[14px] hover:bg-[#e11b4c] transition-colors">
                     START SHOPPING
                   </Link>
